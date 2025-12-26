@@ -1,0 +1,375 @@
+# Plano de Implementação - Walking Safely
+
+- [x] 1. Configuração do Projeto Laravel
+  - [x] 1.1 Criar projeto Laravel 11 com configurações iniciais
+    - Criar projeto com `laravel new walking-safely`
+    - Configurar PostgreSQL no `.env`
+    - Instalar dependências: Laravel Sanctum, Laravel Spatial, eris/eris
+    - Configurar Redis para cache e filas
+    - _Requisitos: 1.1, 17.1_
+  - [x] 1.2 Configurar estrutura de diretórios
+    - Criar diretórios: `app/Contracts`, `app/Services`, `app/ValueObjects`, `app/Enums`
+    - Configurar autoload no `composer.json`
+    - _Requisitos: 1.1_
+  - [x] 1.3 Configurar internacionalização (i18n)
+    - Criar arquivos de idioma em `lang/pt_BR`, `lang/en`, `lang/es`
+    - Configurar locale padrão e fallback
+    - Criar middleware para detecção de idioma
+    - _Requisitos: 21.1, 21.4, 21.6, 22.2_
+
+- [x] 2. Modelos de Dados Base
+  - [x] 2.1 Criar migrations para tabelas principais
+    - Migration para `users` com campos de role, locale, failed_attempts, locked_until
+    - Migration para `audit_logs`
+    - Migration para `translations`
+    - _Requisitos: 16.1, 16.2, 22.1_
+  - [x] 2.2 Criar Enums e Value Objects
+    - Enums: UserRole, OccurrenceSeverity, OccurrenceSource, OccurrenceStatus
+    - Value Objects: Coordinates, RiskFactor
+    - _Requisitos: 5.1, 7.1, 16.1_
+  - [ ]* 2.3 Escrever teste de propriedade para Coordinates
+    - **Propriedade 11: Índice de Risco Válido** (validação de coordenadas)
+    - **Valida: Requisito 5.1**
+  - [x] 2.4 Criar Model User com Sanctum
+    - Implementar campos, casts e métodos de bloqueio
+    - Implementar rate limiting de login
+    - _Requisitos: 16.1, 16.3, 16.4_
+  - [ ]* 2.5 Escrever teste de propriedade para bloqueio de conta
+    - **Propriedade 36: Bloqueio de Conta por Tentativas Falhas**
+    - **Valida: Requisito 16.4**
+  - [x] 2.6 Criar Model AuditLog
+    - Implementar registro automático de ações
+    - _Requisitos: 16.2, 14.2_
+  - [ ]* 2.7 Escrever teste de propriedade para auditoria
+    - **Propriedade 35: Auditoria de Alteração de Permissões**
+    - **Valida: Requisito 16.2**
+
+- [x] 3. Checkpoint - Garantir que todos os testes passam
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 4. Taxonomia de Crimes
+  - [x] 4.1 Criar migrations para taxonomia
+    - Migration para `crime_categories` com parent_id, weight, version
+    - Migration para `crime_types` com category_id
+    - Migration para `crime_type_translations`
+    - Migration para `external_mappings`
+    - _Requisitos: 13.1, 13.3, 21.7_
+  - [x] 4.2 Criar Models CrimeCategory e CrimeType
+    - Implementar relacionamentos hierárquicos
+    - Implementar método getLocalizedName()
+    - Implementar versionamento
+    - _Requisitos: 13.1, 13.2, 21.7_
+  - [ ]* 4.3 Escrever teste de propriedade para hierarquia de taxonomia
+    - **Propriedade 28: Hierarquia de Taxonomia Válida**
+    - **Valida: Requisito 13.1**
+  - [ ]* 4.4 Escrever teste de propriedade para versionamento
+    - **Propriedade 29: Versionamento de Taxonomia**
+    - **Valida: Requisito 13.2**
+  - [ ]* 4.5 Escrever teste de propriedade para serialização de taxonomia
+    - **Propriedade 3: Round-trip de Serialização de Taxonomia**
+    - **Valida: Requisito 13.4**
+  - [ ]* 4.6 Escrever teste de propriedade para tradução de taxonomia
+    - **Propriedade 43: Tradução de Taxonomia de Crimes**
+    - **Valida: Requisito 21.7**
+
+- [x] 5. Ocorrências
+  - [x] 5.1 Criar migrations para ocorrências
+    - Migration para `regions` com geometria PostGIS
+    - Migration para `occurrences` com Point PostGIS
+    - Migration para `occurrence_validations`
+    - _Requisitos: 7.1, 5.1_
+  - [x] 5.2 Criar Model Occurrence com Laravel Spatial
+    - Implementar campos, casts e relacionamentos
+    - Implementar scopes para filtros
+    - _Requisitos: 7.1_
+  - [ ]* 5.3 Escrever teste de propriedade para campos obrigatórios
+    - **Propriedade 16: Campos Obrigatórios de Ocorrência**
+    - **Valida: Requisito 7.1**
+  - [ ]* 5.4 Escrever teste de propriedade para serialização de ocorrência
+    - **Propriedade 1: Round-trip de Serialização de Ocorrência**
+    - **Valida: Requisitos 8.1, 8.2**
+  - [x] 5.5 Criar OccurrenceService
+    - Implementar createOccurrence com validação de localização
+    - Implementar findSimilarOccurrences para deduplicação
+    - Implementar canUserSubmit para rate limiting
+    - _Requisitos: 7.1, 7.2, 7.3, 7.5_
+  - [ ]* 5.6 Escrever teste de propriedade para validação de proximidade
+    - **Propriedade 17: Validação de Proximidade de Ocorrência**
+    - **Valida: Requisito 7.2**
+  - [ ]* 5.7 Escrever teste de propriedade para aumento de confiabilidade
+    - **Propriedade 18: Aumento de Confiabilidade por Corroboração**
+    - **Valida: Requisito 7.3**
+  - [ ]* 5.8 Escrever teste de propriedade para rate limiting
+    - **Propriedade 20: Rate Limiting de Relatos**
+    - **Valida: Requisito 7.5**
+  - [x] 5.9 Criar Job ExpireOldOccurrences
+    - Implementar expiração automática após 7 dias
+    - Agendar no scheduler
+    - _Requisitos: 7.4_
+  - [ ]* 5.10 Escrever teste de propriedade para expiração
+    - **Propriedade 19: Expiração de Relatos Colaborativos**
+    - **Valida: Requisito 7.4**
+
+- [x] 6. Checkpoint - Garantir que todos os testes passam
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 7. Índice de Risco
+  - [x] 7.1 Criar Model RiskIndex
+    - Implementar campos com JSON factors
+    - Implementar relacionamentos
+    - _Requisitos: 5.1_
+  - [ ]* 7.2 Escrever teste de propriedade para serialização de índice de risco
+    - **Propriedade 2: Round-trip de Serialização de Índice de Risco**
+    - **Valida: Requisitos 19.1, 19.2**
+  - [x] 7.3 Criar RiskService
+    - Implementar calculateRiskIndex com fórmula (peso, frequência, recência, confiabilidade)
+    - Implementar getRiskForCoordinates
+    - Implementar getRiskAlongRoute
+    - _Requisitos: 5.1, 5.2, 5.4_
+  - [ ]* 7.4 Escrever teste de propriedade para cálculo de índice
+    - **Propriedade 12: Cálculo de Índice de Risco**
+    - **Valida: Requisito 5.2**
+  - [ ]* 7.5 Escrever teste de propriedade para score de confiabilidade inicial
+    - **Propriedade 13: Score de Confiabilidade Inicial**
+    - **Valida: Requisito 5.4**
+  - [x] 7.6 Criar Job RecalculateRiskIndex
+    - Implementar recálculo por região
+    - Implementar recálculo batch
+    - _Requisitos: 5.3_
+
+- [x] 8. Adaptador de Mapas
+  - [x] 8.1 Criar interface MapAdapterInterface
+    - Definir métodos: calculateRoute, geocode, reverseGeocode, getTrafficData
+    - _Requisitos: 1.1_
+  - [x] 8.2 Implementar GoogleMapsAdapter
+    - Implementar todos os métodos da interface
+    - Configurar autenticação via API Key
+    - _Requisitos: 1.1, 17.1_
+  - [x] 8.3 Implementar HereMapsAdapter
+    - Implementar todos os métodos da interface
+    - Configurar autenticação via API Key
+    - _Requisitos: 1.1, 17.1_
+  - [x] 8.4 Implementar MapboxAdapter
+    - Implementar todos os métodos da interface
+    - Configurar autenticação via API Key
+    - _Requisitos: 1.1, 17.1_
+  - [x] 8.5 Criar MapAdapterFactory
+    - Implementar criação de adapter por configuração
+    - Implementar fallback automático
+    - _Requisitos: 1.3, 1.4, 1.5_
+  - [ ]* 8.6 Escrever teste de propriedade para consistência do adaptador
+    - **Propriedade 4: Consistência do Adaptador de Mapas**
+    - **Valida: Requisitos 1.3, 1.4**
+  - [ ]* 8.7 Escrever teste de propriedade para fallback
+    - **Propriedade 5: Fallback de Provedor de Mapas**
+    - **Valida: Requisito 1.5**
+  - [x] 8.8 Implementar retry com backoff exponencial
+    - Criar trait ou decorator para retry
+    - _Requisitos: 17.3_
+  - [ ]* 8.9 Escrever teste de propriedade para retry
+    - **Propriedade 38: Retry com Backoff Exponencial**
+    - **Valida: Requisito 17.3**
+  - [x] 8.10 Implementar controle de cota
+    - Monitorar uso de API
+    - Reduzir chamadas quando cota >= 80%
+    - _Requisitos: 17.2_
+  - [ ]* 8.11 Escrever teste de propriedade para redução de chamadas
+    - **Propriedade 37: Redução de Chamadas por Cota**
+    - **Valida: Requisito 17.2**
+
+- [x] 9. Checkpoint - Garantir que todos os testes passam
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 10. Serviço de Rotas
+  - [x] 10.1 Criar RouteService
+    - Implementar calculateRouteWithRisk
+    - Implementar analyzeRouteRisk
+    - _Requisitos: 2.1, 2.4_
+  - [ ]* 10.2 Escrever teste de propriedade para risco máximo da rota
+    - **Propriedade 6: Risco Máximo da Rota**
+    - **Valida: Requisito 2.4**
+  - [ ]* 10.3 Escrever teste de propriedade para aviso de risco
+    - **Propriedade 7: Aviso de Risco na Rota**
+    - **Valida: Requisito 2.6**
+  - [x] 10.4 Implementar cálculo de rota segura
+    - Comparar alternativas e selecionar menor risco
+    - Respeitar limite de 20% de distância adicional
+    - _Requisitos: 4.1, 4.3, 4.4_
+  - [ ]* 10.5 Escrever teste de propriedade para rota segura
+    - **Propriedade 9: Rota Segura Minimiza Risco**
+    - **Valida: Requisitos 4.1, 4.4**
+  - [ ]* 10.6 Escrever teste de propriedade para limite de distância
+    - **Propriedade 10: Limite de Distância para Rota Segura**
+    - **Valida: Requisito 4.3**
+  - [x] 10.7 Implementar recálculo de rota em tempo real
+    - Verificar aumento de tempo > 10%
+    - Reavaliar risco da nova rota
+    - _Requisitos: 3.1, 3.4, 3.5_
+  - [ ]* 10.8 Escrever teste de propriedade para recálculo
+    - **Propriedade 8: Recálculo de Rota por Tráfego**
+    - **Valida: Requisito 3.1**
+
+- [x] 11. Serviço de Alertas
+  - [x] 11.1 Criar AlertService
+    - Implementar checkAlertConditions
+    - Implementar calculateAlertDistance
+    - _Requisitos: 6.1, 6.4_
+  - [ ]* 11.2 Escrever teste de propriedade para alerta em região de alto risco
+    - **Propriedade 14: Alerta em Região de Alto Risco**
+    - **Valida: Requisito 6.1**
+  - [ ]* 11.3 Escrever teste de propriedade para distância de antecedência
+    - **Propriedade 15: Distância de Antecedência do Alerta**
+    - **Valida: Requisito 6.4**
+  - [x] 11.4 Implementar preferências de alerta
+    - Criar Model AlertPreference
+    - Implementar filtro por tipo de ocorrência e horário
+    - _Requisitos: 6.3, 6.5_
+
+- [x] 12. Checkpoint - Garantir que todos os testes passam
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 13. Geocodificação
+  - [x] 13.1 Implementar geocodificação no MapAdapter
+    - Limitar a 5 resultados
+    - Implementar cache de resultados
+    - _Requisitos: 9.1, 9.3, 17.5_
+  - [ ]* 13.2 Escrever teste de propriedade para limite de resultados
+    - **Propriedade 21: Limite de Resultados de Geocodificação**
+    - **Valida: Requisito 9.1**
+  - [ ]* 13.3 Escrever teste de propriedade para fallback de cache
+    - **Propriedade 22: Fallback para Cache de Geocodificação**
+    - **Valida: Requisito 9.3**
+
+- [-] 14. Moderação
+  - [x] 14.1 Criar sistema de moderação
+    - Criar Model ModerationQueue
+    - Implementar detecção de anomalias
+    - _Requisitos: 14.1, 14.3_
+  - [ ]* 14.2 Escrever teste de propriedade para fila de moderação
+    - **Propriedade 30: Fila de Moderação para Relatos Suspeitos**
+    - **Valida: Requisito 14.1**
+  - [ ]* 14.3 Escrever teste de propriedade para auditoria de moderação
+    - **Propriedade 31: Auditoria de Decisões de Moderação**
+    - **Valida: Requisito 14.2**
+  - [ ]* 14.4 Escrever teste de propriedade para detecção de abuso
+    - **Propriedade 32: Detecção de Padrão de Abuso**
+    - **Valida: Requisito 14.3**
+
+- [x] 15. Integração ETL
+  - [x] 15.1 Criar pipeline ETL
+    - Criar Job ProcessEtlImport
+    - Implementar mapeamento de taxonomia
+    - Implementar deduplicação
+    - _Requisitos: 12.1, 12.2, 12.3, 12.4_
+  - [ ]* 15.2 Escrever teste de propriedade para mapeamento de taxonomia
+    - **Propriedade 26: Mapeamento de Taxonomia Externa**
+    - **Valida: Requisito 12.2**
+  - [ ]* 15.3 Escrever teste de propriedade para deduplicação
+    - **Propriedade 27: Deduplicação de Ocorrências**
+    - **Valida: Requisito 12.3**
+
+- [x] 16. Checkpoint - Garantir que todos os testes passam
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 17. Visualizações (Mapa de Calor e Série Temporal)
+  - [x] 17.1 Criar HeatmapService
+    - Implementar agregação de ocorrências por região
+    - Implementar filtros por tipo e período
+    - _Requisitos: 10.1, 10.2, 10.3_
+  - [ ]* 17.2 Escrever teste de propriedade para filtro de mapa de calor
+    - **Propriedade 23: Filtro de Mapa de Calor**
+    - **Valida: Requisito 10.2**
+  - [x] 17.3 Criar TimeSeriesService
+    - Implementar agregação temporal
+    - Implementar filtros por região e tipo
+    - _Requisitos: 11.1, 11.2, 11.3, 11.4_
+  - [ ]* 17.4 Escrever teste de propriedade para filtro de série temporal
+    - **Propriedade 24: Filtro de Série Temporal**
+    - **Valida: Requisito 11.2**
+  - [ ]* 17.5 Escrever teste de propriedade para agregação temporal
+    - **Propriedade 25: Agregação de Série Temporal**
+    - **Valida: Requisito 11.3**
+
+- [x] 18. Privacidade e LGPD
+  - [x] 18.1 Implementar gestão de permissões de localização
+    - Criar middleware para verificar permissão
+    - Implementar limpeza de cache ao revogar
+    - _Requisitos: 15.1, 15.3_
+  - [ ]* 18.2 Escrever teste de propriedade para limpeza de dados
+    - **Propriedade 33: Limpeza de Dados após Revogação de Permissão**
+    - **Valida: Requisito 15.3**
+  - [x] 18.3 Implementar anonimização de dados
+    - Criar Job para agregação anônima
+    - _Requisitos: 15.2, 15.4_
+  - [x] 18.4 Implementar exclusão de dados pessoais (LGPD)
+    - Criar endpoint para solicitação de exclusão
+    - _Requisitos: 15.5_
+
+- [x] 19. Gestão de Traduções
+  - [x] 19.1 Criar sistema de traduções dinâmicas
+    - Criar Model Translation com versionamento
+    - Implementar I18nService
+    - _Requisitos: 22.1, 22.3, 22.4_
+  - [ ]* 19.2 Escrever teste de propriedade para round-trip de traduções
+    - **Propriedade 39: Round-trip de Serialização de Traduções**
+    - **Valida: Requisito 22.5**
+  - [ ]* 19.3 Escrever teste de propriedade para fallback de tradução
+    - **Propriedade 40: Fallback de Tradução**
+    - **Valida: Requisito 22.2**
+  - [ ]* 19.4 Escrever teste de propriedade para consistência de idioma
+    - **Propriedade 41: Consistência de Idioma na Interface**
+    - **Valida: Requisito 21.2**
+  - [ ]* 19.5 Escrever teste de propriedade para versionamento de traduções
+    - **Propriedade 42: Versionamento de Traduções**
+    - **Valida: Requisito 22.4**
+  - [x] 19.6 Implementar erros localizados
+    - Criar LocalizedErrorResource
+    - _Requisitos: 21.8_
+  - [ ]* 19.7 Escrever teste de propriedade para erros localizados
+    - **Propriedade 44: Mensagens de Erro Localizadas**
+    - **Valida: Requisito 21.8**
+
+- [x] 20. Checkpoint - Garantir que todos os testes passam
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 21. API Controllers
+  - [x] 21.1 Criar RouteController
+    - Endpoints: POST /routes, POST /routes/recalculate
+    - Implementar API Resources
+    - _Requisitos: 2.1, 3.1, 4.1_
+  - [x] 21.2 Criar OccurrenceController
+    - Endpoints: GET/POST /occurrences, GET /occurrences/{id}
+    - Implementar validação e rate limiting
+    - _Requisitos: 7.1, 7.2, 7.5_
+  - [x] 21.3 Criar GeocodingController
+    - Endpoints: GET /geocode, GET /reverse-geocode
+    - _Requisitos: 9.1, 9.2_
+  - [x] 21.4 Criar AlertController
+    - Endpoints: GET /alerts/check, PUT /alerts/preferences
+    - _Requisitos: 6.1, 6.3_
+  - [x] 21.5 Criar HeatmapController
+    - Endpoints: GET /heatmap
+    - _Requisitos: 10.1, 10.2_
+  - [x] 21.6 Criar TimeSeriesController
+    - Endpoints: GET /timeseries
+    - _Requisitos: 11.1, 11.2_
+  - [x] 21.7 Criar AuthController
+    - Endpoints: POST /login, POST /logout, POST /register
+    - Implementar bloqueio por tentativas falhas
+    - _Requisitos: 16.3, 16.4_
+  - [x] 21.8 Criar AdminController
+    - Endpoints para moderação, taxonomia e traduções
+    - _Requisitos: 13.2, 14.2, 22.3_
+
+- [x] 22. Painel de Analytics
+  - [x] 22.1 Criar AnalyticsService
+    - Implementar indicadores de gestão
+    - Implementar métricas de qualidade de dados
+    - _Requisitos: 20.1, 20.4_
+  - [x] 22.2 Criar endpoints de analytics
+    - GET /analytics/dashboard
+    - GET /analytics/export (CSV, PDF)
+    - _Requisitos: 20.2, 20.3_
+
+- [x] 23. Checkpoint Final - Garantir que todos os testes passam
+  - Ensure all tests pass, ask the user if questions arise.
