@@ -11,6 +11,7 @@ import {useTranslation} from 'react-i18next';
 import {Text, StyleSheet, View, ActivityIndicator} from 'react-native';
 import {colors} from '../theme/colors';
 import {textStyles} from '../theme/typography';
+import {MapIcon, StatsIcon, SettingsIcon} from '../components/icons';
 import type {
   MainTabParamList,
   MapStackParamList,
@@ -23,6 +24,7 @@ import type {
 const MapScreen = lazy(() => import('../screens/main/MapScreen'));
 const StatisticsScreen = lazy(() => import('../screens/main/StatisticsScreen'));
 const SettingsScreen = lazy(() => import('../screens/settings/SettingsScreen'));
+const GeneralSettingsScreen = lazy(() => import('../screens/settings/GeneralSettingsScreen'));
 const AlertPreferencesScreen = lazy(
   () => import('../screens/settings/AlertPreferencesScreen'),
 );
@@ -74,6 +76,7 @@ function withSuspense(
 const LazyMapScreen = withSuspense(MapScreen);
 const LazyStatisticsScreen = withSuspense(StatisticsScreen);
 const LazySettingsScreen = withSuspense(SettingsScreen);
+const LazyGeneralSettingsScreen = withSuspense(GeneralSettingsScreen);
 const LazyAlertPreferencesScreen = withSuspense(AlertPreferencesScreen);
 const LazyLanguageScreen = withSuspense(LanguageScreen);
 const LazyPrivacyScreen = withSuspense(PrivacyScreen);
@@ -207,6 +210,13 @@ const SettingsStackNavigator: React.FC = () => {
         }}
       />
       <SettingsStack.Screen
+        name="GeneralSettings"
+        component={LazyGeneralSettingsScreen}
+        options={{
+          title: t('settings.general'),
+        }}
+      />
+      <SettingsStack.Screen
         name="AlertPreferences"
         component={LazyAlertPreferencesScreen}
         options={{
@@ -232,27 +242,35 @@ const SettingsStackNavigator: React.FC = () => {
 };
 
 /**
- * Tab Bar Icon Component
+ * Tab Bar Icon Component - Professional SVG Icons
  */
 interface TabIconProps {
   focused: boolean;
   label: string;
+  size?: number;
 }
 
-const TabIcon: React.FC<TabIconProps> = ({focused, label}) => {
-  // Simple text-based icons for now
-  // Can be replaced with actual icons later
-  const iconMap: Record<string, string> = {
-    map: '🗺️',
-    statistics: '📊',
-    settings: '⚙️',
+const TabIcon: React.FC<TabIconProps> = ({focused, label, size = 24}) => {
+  const iconProps = {
+    size,
+    focused,
+    color: focused ? colors.primary.main : colors.text.tertiary,
   };
 
-  return (
-    <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-      {iconMap[label.toLowerCase()] || '•'}
-    </Text>
-  );
+  switch (label.toLowerCase()) {
+    case 'map':
+      return <MapIcon {...iconProps} />;
+    case 'statistics':
+      return <StatsIcon {...iconProps} />;
+    case 'settings':
+      return <SettingsIcon {...iconProps} />;
+    default:
+      return (
+        <View style={[styles.fallbackIcon, focused && styles.fallbackIconFocused]}>
+          <Text style={styles.fallbackIconText}>•</Text>
+        </View>
+      );
+  }
 };
 
 /**
@@ -274,13 +292,23 @@ export const MainNavigator: React.FC = () => {
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: 8,
-          height: 60,
+          height: 65,
+          elevation: 8, // Android shadow
+          shadowColor: colors.neutral.black, // iOS shadow
+          shadowOffset: {
+            width: 0,
+            height: -2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
         },
         tabBarActiveTintColor: colors.primary.main,
         tabBarInactiveTintColor: colors.text.tertiary,
         tabBarLabelStyle: {
           ...textStyles.caption,
           marginTop: 4,
+          fontSize: 11,
+          fontWeight: '600',
         },
         // Requirement 16.3: Preserve state between tabs
         lazy: false,
@@ -324,12 +352,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background.primary,
   },
-  tabIcon: {
-    fontSize: 20,
+  fallbackIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
     opacity: 0.6,
   },
-  tabIconFocused: {
+  fallbackIconFocused: {
     opacity: 1,
+  },
+  fallbackIconText: {
+    fontSize: 20,
+    color: colors.text.tertiary,
   },
 });
 

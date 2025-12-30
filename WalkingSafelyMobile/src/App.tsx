@@ -13,6 +13,8 @@ import {RootNavigator} from './navigation';
 import {NetworkProvider, useNetworkContext} from './contexts';
 import {OfflineBanner} from './components/common';
 import {backgroundService} from './services/background';
+import {useKeepAwake} from './hooks';
+import {usePreferencesStore} from './store/preferencesStore';
 
 // Initialize i18n
 import './i18n';
@@ -29,7 +31,14 @@ Geolocation.setRNConfiguration({
  */
 function AppContent(): React.JSX.Element {
   const {isConnected, status} = useNetworkContext();
+  const {keepScreenAwake} = usePreferencesStore();
   const isOffline = status === 'offline' || !isConnected;
+
+  // Keep screen awake while app is active (based on user preference)
+  useKeepAwake({
+    enabled: keepScreenAwake,
+    tag: 'WalkingSafelyApp',
+  });
 
   // Initialize background service for resource management
   // Requirement 15.5: Release resources when in background

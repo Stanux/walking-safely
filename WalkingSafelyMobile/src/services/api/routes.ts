@@ -9,8 +9,10 @@ import {
   RouteRequest,
   RouteResponse,
   RouteRecalculationResponse,
+  RouteInstruction,
   Coordinates,
 } from '../../types/models';
+import i18n from '../../i18n';
 
 /**
  * Routes service interface
@@ -136,6 +138,40 @@ export const routesService: RoutesService = {
       timestamp: occ.timestamp,
     }));
 
+    // Create basic instructions from route data
+    const instructions: RouteInstruction[] = [];
+    
+    // Add start instruction
+    instructions.push({
+      text: i18n.t('navigation.instructions.depart'),
+      distance: 0,
+      duration: 0,
+      maneuver: 'depart',
+      coordinates: route.origin,
+    });
+    
+    // Add waypoint instructions if available
+    if (route.waypoints && route.waypoints.length > 0) {
+      route.waypoints.forEach((waypoint, index) => {
+        instructions.push({
+          text: i18n.t('navigation.instructions.continue'),
+          distance: 0, // Would be calculated from polyline
+          duration: 0,
+          maneuver: 'straight',
+          coordinates: waypoint,
+        });
+      });
+    }
+    
+    // Add end instruction
+    instructions.push({
+      text: i18n.t('navigation.instructions.arrive'),
+      distance: route.distance,
+      duration: route.duration,
+      maneuver: 'arrive',
+      coordinates: route.destination,
+    });
+
     const result: RouteResponse = {
       id: route.id || `route_${Date.now()}`,
       polyline: route.polyline || '',
@@ -145,7 +181,7 @@ export const routesService: RoutesService = {
       averageRiskIndex: risk_analysis?.average_risk_index || 0,
       requiresWarning: warning?.requires_warning || false,
       warningMessage: warning?.message || undefined,
-      instructions: [],
+      instructions,
       occurrences,
     };
 

@@ -4,6 +4,7 @@
  */
 
 import Tts from 'react-native-tts';
+import i18n from '../i18n';
 
 class TTSService {
   private isInitialized = false;
@@ -17,8 +18,18 @@ class TTSService {
     if (this.isInitialized) return;
 
     try {
-      // Set default language to Portuguese (Brazil)
-      await Tts.setDefaultLanguage('pt-BR');
+      // Get current language from i18n
+      const currentLanguage = i18n.language;
+      
+      // Set TTS language based on app language
+      let ttsLanguage = 'pt-BR'; // Default
+      if (currentLanguage.startsWith('en')) {
+        ttsLanguage = 'en-US';
+      } else if (currentLanguage.startsWith('es')) {
+        ttsLanguage = 'es-ES';
+      }
+      
+      await Tts.setDefaultLanguage(ttsLanguage);
       
       // Set speech rate (0.5 = slower, 1.0 = normal, 1.5 = faster)
       await Tts.setDefaultRate(0.5);
@@ -41,7 +52,7 @@ class TTSService {
       });
 
       this.isInitialized = true;
-      console.log('[TTS] Initialized successfully');
+      console.log('[TTS] Initialized successfully with language:', ttsLanguage);
     } catch (error) {
       console.error('[TTS] Failed to initialize:', error);
     }
@@ -111,66 +122,90 @@ class TTSService {
    */
   async speakManeuver(maneuver: string, distance: number, streetName?: string): Promise<void> {
     const distanceText = this.formatDistance(distance);
-    let instruction = '';
+    let instructionKey = '';
 
+    // Map maneuver types to translation keys
     switch (maneuver) {
       case 'turn-left':
-        instruction = 'vire à esquerda';
+        instructionKey = 'navigation.instructions.turnLeft';
         break;
       case 'turn-right':
-        instruction = 'vire à direita';
+        instructionKey = 'navigation.instructions.turnRight';
         break;
       case 'turn-slight-left':
-        instruction = 'vire levemente à esquerda';
+        instructionKey = 'navigation.instructions.turnSlightLeft';
         break;
       case 'turn-slight-right':
-        instruction = 'vire levemente à direita';
+        instructionKey = 'navigation.instructions.turnSlightRight';
         break;
       case 'turn-sharp-left':
-        instruction = 'vire acentuadamente à esquerda';
+        instructionKey = 'navigation.instructions.turnSharpLeft';
         break;
       case 'turn-sharp-right':
-        instruction = 'vire acentuadamente à direita';
+        instructionKey = 'navigation.instructions.turnSharpRight';
         break;
       case 'uturn-left':
+        instructionKey = 'navigation.instructions.uturnLeft';
+        break;
       case 'uturn-right':
-        instruction = 'faça o retorno';
+        instructionKey = 'navigation.instructions.uturnRight';
+        break;
+      case 'uturn':
+        instructionKey = 'navigation.instructions.uturn';
         break;
       case 'straight':
-        instruction = 'siga em frente';
+        instructionKey = 'navigation.instructions.straight';
         break;
       case 'merge':
-        instruction = 'entre na via';
+        instructionKey = 'navigation.instructions.merge';
         break;
       case 'ramp-left':
-        instruction = 'pegue a rampa à esquerda';
+        instructionKey = 'navigation.instructions.rampLeft';
         break;
       case 'ramp-right':
-        instruction = 'pegue a rampa à direita';
+        instructionKey = 'navigation.instructions.rampRight';
         break;
       case 'fork-left':
-        instruction = 'mantenha-se à esquerda na bifurcação';
+        instructionKey = 'navigation.instructions.forkLeft';
         break;
       case 'fork-right':
-        instruction = 'mantenha-se à direita na bifurcação';
+        instructionKey = 'navigation.instructions.forkRight';
         break;
       case 'roundabout-left':
+        instructionKey = 'navigation.instructions.roundaboutLeft';
+        break;
       case 'roundabout-right':
-        instruction = 'entre na rotatória';
+        instructionKey = 'navigation.instructions.roundaboutRight';
+        break;
+      case 'roundabout':
+        instructionKey = 'navigation.instructions.roundabout';
         break;
       case 'arrive':
-        instruction = 'você chegou ao seu destino';
+        instructionKey = 'navigation.instructions.arrive';
         break;
       case 'depart':
-        instruction = 'inicie o percurso';
+        instructionKey = 'navigation.instructions.depart';
         break;
       default:
-        instruction = 'continue';
+        instructionKey = 'navigation.instructions.continue';
     }
 
-    let text = `Em ${distanceText}, ${instruction}`;
-    if (streetName && maneuver !== 'arrive') {
-      text += ` na ${streetName}`;
+    // Get translated instruction
+    const instruction = i18n.t(instructionKey);
+    
+    // Format the complete message
+    let text = '';
+    if (maneuver === 'arrive' || maneuver === 'depart') {
+      text = instruction;
+    } else {
+      // Use translated format: "Em {distance}, {instruction}"
+      const inText = i18n.language.startsWith('pt') ? 'Em' : 'In';
+      text = `${inText} ${distanceText}, ${instruction.toLowerCase()}`;
+      
+      if (streetName && maneuver !== 'arrive') {
+        const onText = i18n.language.startsWith('pt') ? 'na' : 'on';
+        text += ` ${onText} ${streetName}`;
+      }
     }
 
     await this.speak(text);
@@ -181,7 +216,10 @@ class TTSService {
    */
   async speakRiskAlert(crimeType: string, distance: number): Promise<void> {
     const distanceText = this.formatDistance(distance);
-    const text = `Atenção! Área de risco em ${distanceText}. ${crimeType} reportado nesta região.`;
+    const text = i18n.t('navigation.instructions.riskAlert', {
+      distance: distanceText,
+      crimeType: crimeType
+    });
     await this.speak(text, true); // Interrupt current speech for alerts
   }
 
@@ -189,37 +227,47 @@ class TTSService {
    * Speak arrival
    */
   async speakArrival(): Promise<void> {
-    await this.speak('Você chegou ao seu destino.', true);
+    const text = i18n.t('navigation.instructions.arrive');
+    await this.speak(text, true);
   }
 
   /**
    * Speak recalculating
    */
   async speakRecalculating(): Promise<void> {
-    await this.speak('Recalculando rota.', true);
+    const text = i18n.t('navigation.instructions.recalculating');
+    await this.speak(text, true);
   }
 
   /**
    * Format distance for speech
    */
   private formatDistance(meters: number): string {
+    const isPortuguese = i18n.language.startsWith('pt');
+    
     if (meters >= 1000) {
       const km = meters / 1000;
+      const unit = isPortuguese ? 'quilômetros' : 'kilometers';
       if (km >= 10) {
-        return `${Math.round(km)} quilômetros`;
+        return `${Math.round(km)} ${unit}`;
       }
-      return `${km.toFixed(1).replace('.', ',')} quilômetros`;
+      const formattedKm = isPortuguese ? 
+        km.toFixed(1).replace('.', ',') : 
+        km.toFixed(1);
+      return `${formattedKm} ${unit}`;
     }
     
+    const unit = isPortuguese ? 'metros' : 'meters';
+    
     if (meters >= 100) {
-      return `${Math.round(meters / 10) * 10} metros`;
+      return `${Math.round(meters / 10) * 10} ${unit}`;
     }
     
     if (meters >= 50) {
-      return `${Math.round(meters)} metros`;
+      return `${Math.round(meters)} ${unit}`;
     }
     
-    return 'alguns metros';
+    return isPortuguese ? 'alguns metros' : 'a few meters';
   }
 
   /**

@@ -93,30 +93,55 @@ const getManeuverIcon = (maneuver: string): string => {
 };
 
 /**
- * Get maneuver description in Portuguese
+ * Get maneuver description using translations
  */
 const getManeuverDescription = (maneuver: string): string => {
-  const descriptions: Record<string, string> = {
-    'turn-left': 'Vire à esquerda',
-    'turn-right': 'Vire à direita',
-    'turn-slight-left': 'Vire levemente à esquerda',
-    'turn-slight-right': 'Vire levemente à direita',
-    'turn-sharp-left': 'Curva acentuada à esquerda',
-    'turn-sharp-right': 'Curva acentuada à direita',
-    'uturn-left': 'Retorno à esquerda',
-    'uturn-right': 'Retorno à direita',
-    straight: 'Siga em frente',
-    merge: 'Entre na via',
-    'ramp-left': 'Pegue a rampa à esquerda',
-    'ramp-right': 'Pegue a rampa à direita',
-    'fork-left': 'Mantenha-se à esquerda',
-    'fork-right': 'Mantenha-se à direita',
-    'roundabout-left': 'Na rotatória, saia à esquerda',
-    'roundabout-right': 'Na rotatória, saia à direita',
-    arrive: 'Você chegou',
-    depart: 'Inicie o percurso',
-  };
-  return descriptions[maneuver] || 'Continue';
+  const {t} = useTranslation();
+  
+  switch (maneuver) {
+    case 'turn-left':
+      return t('navigation.instructions.turnLeft');
+    case 'turn-right':
+      return t('navigation.instructions.turnRight');
+    case 'turn-slight-left':
+      return t('navigation.instructions.turnSlightLeft');
+    case 'turn-slight-right':
+      return t('navigation.instructions.turnSlightRight');
+    case 'turn-sharp-left':
+      return t('navigation.instructions.turnSharpLeft');
+    case 'turn-sharp-right':
+      return t('navigation.instructions.turnSharpRight');
+    case 'uturn-left':
+      return t('navigation.instructions.uturnLeft');
+    case 'uturn-right':
+      return t('navigation.instructions.uturnRight');
+    case 'uturn':
+      return t('navigation.instructions.uturn');
+    case 'straight':
+      return t('navigation.instructions.straight');
+    case 'merge':
+      return t('navigation.instructions.merge');
+    case 'ramp-left':
+      return t('navigation.instructions.rampLeft');
+    case 'ramp-right':
+      return t('navigation.instructions.rampRight');
+    case 'fork-left':
+      return t('navigation.instructions.forkLeft');
+    case 'fork-right':
+      return t('navigation.instructions.forkRight');
+    case 'roundabout-left':
+      return t('navigation.instructions.roundaboutLeft');
+    case 'roundabout-right':
+      return t('navigation.instructions.roundaboutRight');
+    case 'roundabout':
+      return t('navigation.instructions.roundabout');
+    case 'arrive':
+      return t('navigation.instructions.arrive');
+    case 'depart':
+      return t('navigation.instructions.depart');
+    default:
+      return t('navigation.instructions.continue');
+  }
 };
 
 /**
@@ -608,7 +633,8 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
     // Initialize TTS
     ttsService.init().then(() => {
       if (voiceEnabled) {
-        ttsService.speak('Navegação iniciada');
+        const message = t('navigation.instructions.navigationStarted');
+        ttsService.speak(message);
       }
     });
     

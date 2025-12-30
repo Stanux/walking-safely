@@ -8,7 +8,6 @@ export {
   RoutePolyline,
   type RoutePolylineProps,
   decodePolyline,
-  encodePolyline,
 } from './RoutePolyline';
 export {
   HeatmapLayer,

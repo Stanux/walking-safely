@@ -19,6 +19,7 @@ interface PreferencesState {
   locale: SupportedLanguage;
   alertsEnabled: boolean;
   soundEnabled: boolean;
+  keepScreenAwake: boolean;
   alertTypes: string[];
   alertSchedule: AlertSchedule | null;
   isLoading: boolean;
@@ -33,6 +34,7 @@ interface PreferencesActions {
   setLocale: (locale: SupportedLanguage) => void;
   setAlertsEnabled: (enabled: boolean) => Promise<void>;
   setSoundEnabled: (enabled: boolean) => Promise<void>;
+  setKeepScreenAwake: (enabled: boolean) => void;
   setAlertTypes: (types: string[]) => Promise<void>;
   setAlertSchedule: (schedule: AlertSchedule | null) => Promise<void>;
   updateAlertPreferences: (
@@ -59,6 +61,7 @@ const initialState: PreferencesState = {
   locale: DEFAULT_LOCALE,
   alertsEnabled: true,
   soundEnabled: true,
+  keepScreenAwake: true,
   alertTypes: [],
   alertSchedule: null,
   isLoading: false,
@@ -118,6 +121,14 @@ export const usePreferencesStore = create<PreferencesStore>()(
               error instanceof Error ? error.message : 'errors.preferencesSync',
           });
         }
+      },
+
+      /**
+       * Enable/disable keep screen awake
+       * Local preference that doesn't sync with backend
+       */
+      setKeepScreenAwake: (enabled: boolean) => {
+        set({keepScreenAwake: enabled});
       },
 
       /**
@@ -240,6 +251,7 @@ export const usePreferencesStore = create<PreferencesStore>()(
         locale: state.locale,
         alertsEnabled: state.alertsEnabled,
         soundEnabled: state.soundEnabled,
+        keepScreenAwake: state.keepScreenAwake,
         alertTypes: state.alertTypes,
         alertSchedule: state.alertSchedule,
       }),

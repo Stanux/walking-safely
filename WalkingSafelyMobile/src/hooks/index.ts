@@ -43,5 +43,10 @@ export {
   type UseBackgroundReturn,
 } from './useBackground';
 
+// Keep Awake Hook
+export {
+  useKeepAwake,
+} from './useKeepAwake';
+
 // Other hooks will be exported here as they are created
 // export { useAuth } from './useAuth';

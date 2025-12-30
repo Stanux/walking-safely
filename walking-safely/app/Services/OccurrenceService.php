@@ -14,7 +14,7 @@ use App\ValueObjects\Coordinates;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use MatanYadaev\EloquentSpatial\Objects\Point;
+use App\Services\DynamicRegionService;
 
 class OccurrenceService
 {
@@ -303,6 +303,7 @@ class OccurrenceService
 
     /**
      * Find the region containing the given coordinates.
+     * Creates a new region if none exists.
      */
     private function findRegionForCoordinates(Coordinates $coordinates): ?int
     {
@@ -313,7 +314,13 @@ class OccurrenceService
             ->orderBy('type', 'desc') // Prefer more specific regions (neighborhood > district > city)
             ->first();
 
-        return $region?->id;
+        // Se não encontrar região, cria uma dinamicamente
+        if (!$region) {
+            $dynamicRegionService = app(DynamicRegionService::class);
+            return $dynamicRegionService->findOrCreateRegionForCoordinates($coordinates);
+        }
+
+        return $region->id;
     }
 
     /**

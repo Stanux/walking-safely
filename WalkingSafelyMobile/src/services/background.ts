@@ -5,6 +5,7 @@
  */
 
 import {AppState, AppStateStatus} from 'react-native';
+import KeepAwake from 'react-native-keep-awake';
 import {locationService} from './location';
 
 /**
@@ -28,7 +29,7 @@ interface BackgroundCallbacks {
 }
 
 /**
- * Wake lock interface (to be implemented with native module)
+ * Wake lock interface using react-native-keep-awake
  */
 interface WakeLock {
   activate: () => void;
@@ -36,18 +37,25 @@ interface WakeLock {
   isActive: () => boolean;
 }
 
-// Wake lock implementation placeholder
-let wakeLock: WakeLock | null = null;
-try {
-  // In production, this would be react-native-keep-awake or similar
-  wakeLock = {
-    activate: () => console.log('[WakeLock] Activated'),
-    deactivate: () => console.log('[WakeLock] Deactivated'),
-    isActive: () => false,
-  };
-} catch {
-  // Wake lock not available
-}
+// Wake lock implementation using react-native-keep-awake
+const wakeLock: WakeLock = {
+  activate: () => {
+    KeepAwake.activate('BackgroundService');
+    console.log('[WakeLock] Activated');
+  },
+  deactivate: () => {
+    KeepAwake.deactivate('BackgroundService');
+    console.log('[WakeLock] Deactivated');
+  },
+  isActive: () => {
+    // react-native-keep-awake doesn't provide a way to check if active
+    // We'll track this internally
+    return wakeLockActive;
+  },
+};
+
+// Track wake lock state internally
+let wakeLockActive = false;
 
 /**
  * Background service state
@@ -121,7 +129,8 @@ const releaseResources = (): void => {
   locationService.stopAllTracking();
 
   // Deactivate wake lock
-  wakeLock?.deactivate();
+  wakeLock.deactivate();
+  wakeLockActive = false;
 
   callbacks.onResourcesReleased?.();
   console.log('[BackgroundService] Resources released');
@@ -238,14 +247,16 @@ export const backgroundService: BackgroundService = {
 
     if (active && !wasActive) {
       // Navigation started - activate wake lock
-      wakeLock?.activate();
+      wakeLock.activate();
+      wakeLockActive = true;
       console.log(
         '[BackgroundService] Navigation started, wake lock activated',
       );
     } else if (!active && wasActive) {
       // Navigation ended - deactivate wake lock if in background
       if (state.isInBackground) {
-        wakeLock?.deactivate();
+        wakeLock.deactivate();
+        wakeLockActive = false;
         locationService.stopAllTracking();
       }
       console.log('[BackgroundService] Navigation ended');
@@ -257,11 +268,13 @@ export const backgroundService: BackgroundService = {
   isNavigationActive: () => state.isNavigationActive,
 
   activateWakeLock: () => {
-    wakeLock?.activate();
+    wakeLock.activate();
+    wakeLockActive = true;
   },
 
   deactivateWakeLock: () => {
-    wakeLock?.deactivate();
+    wakeLock.deactivate();
+    wakeLockActive = false;
   },
 
   forceReleaseResources: () => {

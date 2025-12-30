@@ -298,39 +298,58 @@ class RiskService
     }
 
     /**
-     * Get risk indexes along a route (array of coordinates).
-     *
-     * @param Coordinates[] $waypoints
-     * @return RiskIndex[]
+     * Get risk analysis along a route by checking waypoints and nearby occurrences.
      */
     public function getRiskAlongRoute(array $waypoints): array
     {
         $riskIndexes = [];
         $processedRegions = [];
-
+        
+        // First, check regions that waypoints pass through
         foreach ($waypoints as $waypoint) {
             $point = $waypoint->toPoint();
-
-            // Find regions containing this point
+            
             $regions = Region::query()
                 ->whereContains('boundary', $point)
                 ->get();
-
+            
             foreach ($regions as $region) {
-                // Skip already processed regions
-                if (in_array($region->id, $processedRegions)) {
-                    continue;
-                }
-
-                $processedRegions[] = $region->id;
-                $riskIndex = $this->getRiskForRegion($region->id);
-
-                if ($riskIndex) {
-                    $riskIndexes[] = $riskIndex;
+                if (!in_array($region->id, $processedRegions)) {
+                    $riskIndex = $this->getRiskForRegion($region->id);
+                    if ($riskIndex) {
+                        $riskIndexes[] = $riskIndex;
+                        $processedRegions[] = $region->id;
+                    }
                 }
             }
         }
-
+        
+        // Additionally, check for nearby occurrences within a radius
+        // This helps catch risks that might be close to the route but not exactly on it
+        $nearbyRadius = 5000; // 5km radius
+        
+        foreach ($waypoints as $waypoint) {
+            $nearbyOccurrences = Occurrence::query()
+                ->active()
+                ->withinDays(30)
+                ->whereRaw(
+                    'ST_DWithin(location, ST_SetSRID(ST_Point(?, ?), 4326), ?)',
+                    [$waypoint->longitude, $waypoint->latitude, $nearbyRadius]
+                )
+                ->with('region')
+                ->get();
+            
+            foreach ($nearbyOccurrences as $occurrence) {
+                if ($occurrence->region && !in_array($occurrence->region->id, $processedRegions)) {
+                    $riskIndex = $this->getRiskForRegion($occurrence->region->id);
+                    if ($riskIndex) {
+                        $riskIndexes[] = $riskIndex;
+                        $processedRegions[] = $occurrence->region->id;
+                    }
+                }
+            }
+        }
+        
         return $riskIndexes;
     }
 

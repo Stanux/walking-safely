@@ -28,3 +28,4 @@ export {
   type ModalSize,
 } from './Modal';
 export {OfflineBanner, type OfflineBannerProps} from './OfflineBanner';
+export {AppLogo} from './AppLogo';

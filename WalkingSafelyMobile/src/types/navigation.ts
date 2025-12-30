@@ -51,6 +51,7 @@ export type MapStackParamList = {
  */
 export type SettingsStackParamList = {
   SettingsHome: undefined;
+  GeneralSettings: undefined;
   AlertPreferences: undefined;
   LanguageSettings: undefined;
   PrivacySettings: undefined;
@@ -134,6 +135,10 @@ export type SettingsHomeScreenProps = CompositeScreenProps<
 export type AlertPreferencesScreenProps = NativeStackScreenProps<
   SettingsStackParamList,
   'AlertPreferences'
+>;
+export type GeneralSettingsScreenProps = NativeStackScreenProps<
+  SettingsStackParamList,
+  'GeneralSettings'
 >;
 export type LanguageSettingsScreenProps = NativeStackScreenProps<
   SettingsStackParamList,

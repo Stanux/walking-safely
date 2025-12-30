@@ -137,9 +137,9 @@ class OccurrenceController extends Controller
      *
      * GET /api/occurrences/{id}
      */
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
-        $occurrence = $this->occurrenceService->getOccurrence($id);
+        $occurrence = $this->occurrenceService->getOccurrence((int) $id);
 
         if (!$occurrence) {
             return response()->json([

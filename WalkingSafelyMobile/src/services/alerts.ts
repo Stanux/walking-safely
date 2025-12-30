@@ -30,7 +30,7 @@ export interface AlertCheckResult {
  * Alert service configuration
  */
 export interface AlertServiceConfig {
-  /** Minimum risk index to trigger alert (default: 70) */
+  /** Minimum risk index to trigger alert (default: 50) */
   minRiskIndex: number;
   /** Minimum alert distance in meters for high speeds (default: 500) */
   minAlertDistanceHighSpeed: number;
@@ -46,7 +46,7 @@ export interface AlertServiceConfig {
  * Default alert service configuration
  */
 const DEFAULT_CONFIG: AlertServiceConfig = {
-  minRiskIndex: 70,
+  minRiskIndex: 50, // Ajustado para ser consistente com o backend
   minAlertDistanceHighSpeed: 500,
   highSpeedThreshold: 40,
   baseAlertDistance: 200,
@@ -279,29 +279,65 @@ export const alertService: AlertService = {
    * Analyzes route instructions to identify high-risk areas
    */
   extractHighRiskRegions(route: RouteResponse): HighRiskRegion[] {
+    console.log('[AlertService] Extracting high-risk regions from route:', {
+      maxRiskIndex: route.maxRiskIndex,
+      minRiskIndex: currentConfig.minRiskIndex,
+      occurrencesCount: route.occurrences?.length || 0,
+      instructionsCount: route.instructions?.length || 0,
+    });
+
     const regions: HighRiskRegion[] = [];
 
-    // If route has high risk, create regions from instructions
+    // If route has high risk, create regions from occurrences or instructions
     if (route.maxRiskIndex >= currentConfig.minRiskIndex) {
-      // For now, we create a single region at the point of highest risk
-      // In a real implementation, this would come from the backend with detailed risk data
-
-      // Find instruction points that might be in high-risk areas
-      // This is a simplified approach - the backend should provide actual risk regions
-      for (const instruction of route.instructions) {
-        // Assume instructions in high-risk areas have elevated risk
-        // This would be enhanced with actual risk data from backend
-        if (route.maxRiskIndex >= currentConfig.minRiskIndex) {
+      console.log('[AlertService] Route passes risk threshold, creating regions...');
+      
+      // First, try to use occurrences as high-risk regions
+      if (route.occurrences && route.occurrences.length > 0) {
+        console.log('[AlertService] Using occurrences as risk regions');
+        for (const occurrence of route.occurrences) {
           regions.push({
-            coordinates: instruction.coordinates,
+            coordinates: occurrence.location,
             riskIndex: route.maxRiskIndex,
-            crimeType: undefined, // Would come from backend
+            crimeType: occurrence.crimeType,
             radius: 100, // Default radius in meters
           });
         }
+      } 
+      // Fallback to instructions if available
+      else if (route.instructions && route.instructions.length > 0) {
+        console.log('[AlertService] Using instructions as risk regions');
+        for (const instruction of route.instructions) {
+          if (route.maxRiskIndex >= currentConfig.minRiskIndex) {
+            regions.push({
+              coordinates: instruction.coordinates,
+              riskIndex: route.maxRiskIndex,
+              crimeType: undefined,
+              radius: 100,
+            });
+          }
+        }
       }
+      // If no occurrences or instructions, create a region at the midpoint
+      else {
+        console.log('[AlertService] No occurrences or instructions, creating fallback region');
+        // This is a fallback - create a region somewhere along the route
+        // In a real scenario, the backend should provide specific risk regions
+        regions.push({
+          coordinates: {
+            latitude: (route.maxRiskIndex > 0) ? -27.637 : 0, // Placeholder
+            longitude: (route.maxRiskIndex > 0) ? -48.665 : 0, // Placeholder
+          },
+          riskIndex: route.maxRiskIndex,
+          crimeType: 'Unknown',
+          radius: 100,
+        });
+      }
+    } else {
+      console.log('[AlertService] Route does not pass risk threshold');
     }
 
+    console.log('[AlertService] Created', regions.length, 'high-risk regions');
     return regions;
   },
 

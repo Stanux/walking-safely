@@ -26,13 +26,19 @@ interface SettingsMenuItem {
   id: string;
   titleKey: string;
   icon: string;
-  screen: 'AlertPreferences' | 'LanguageSettings' | 'PrivacySettings' | 'About';
+  screen: 'AlertPreferences' | 'GeneralSettings' | 'LanguageSettings' | 'PrivacySettings' | 'About';
 }
 
 /**
  * Settings menu items configuration
  */
 const SETTINGS_MENU_ITEMS: SettingsMenuItem[] = [
+  {
+    id: 'general',
+    titleKey: 'settings.general',
+    icon: '⚙️',
+    screen: 'GeneralSettings',
+  },
   {
     id: 'alerts',
     titleKey: 'settings.alertPreferences',

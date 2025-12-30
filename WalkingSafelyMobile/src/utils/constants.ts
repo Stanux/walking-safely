@@ -4,7 +4,7 @@
 
 // API Configuration
 export const API_BASE_URL = __DEV__
-  ? 'http://192.168.15.7:8080/api'
+  ? 'http://192.168.15.3:8000/api'
   : 'https://api.walkingsafely.com/api';
 
 // Timeouts
