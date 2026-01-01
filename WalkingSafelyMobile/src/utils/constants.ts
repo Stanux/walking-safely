@@ -3,12 +3,10 @@
  */
 
 // API Configuration
-export const API_BASE_URL = __DEV__
-  ? 'http://192.168.15.3:8000/api'
-  : 'https://api.walkingsafely.com/api';
+export const API_BASE_URL = 'http://50.21.181.92:8080/api';
 
 // Timeouts
-export const API_TIMEOUT = 10000; // 10 seconds
+export const API_TIMEOUT = 15000; // 15 seconds (aumentado para conexões remotas)
 export const LOCATION_TIMEOUT = 15000; // 15 seconds
 export const DEBOUNCE_DELAY = 500; // 500ms for search
 

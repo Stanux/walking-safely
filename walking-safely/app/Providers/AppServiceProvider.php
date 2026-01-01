@@ -24,9 +24,10 @@ class AppServiceProvider extends ServiceProvider
             return new MapAdapterFactory($app->make(QuotaManager::class));
         });
 
-        // Register MapAdapterInterface to use the adapter with fallback
+        // Register MapAdapterInterface to use Nominatim directly (forced)
         $this->app->bind(MapAdapterInterface::class, function ($app) {
-            return $app->make(MapAdapterFactory::class)->getAdapterWithFallback();
+            $factory = $app->make(MapAdapterFactory::class);
+            return $factory->createAdapter('nominatim');
         });
     }
 

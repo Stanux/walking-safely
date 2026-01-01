@@ -92,11 +92,22 @@ export const MapScreen: React.FC<MapHomeScreenProps> = ({navigation}) => {
     updateMapStore: true,
   });
 
-  // Debug log for coordinates
+  // Debug log for coordinates (apenas quando há mudança significativa)
+  const lastLoggedPosition = useRef<string>('');
   useEffect(() => {
-    console.log('[MapScreen] coordinates:', coordinates);
-    console.log('[MapScreen] hasPermission:', hasPermission);
-    console.log('[MapScreen] locationError:', locationError);
+    const currentPosStr = coordinates ? `${coordinates.latitude.toFixed(4)},${coordinates.longitude.toFixed(4)}` : 'null';
+    if (currentPosStr !== lastLoggedPosition.current) {
+      lastLoggedPosition.current = currentPosStr;
+      if (!hasPermission) {
+        console.log('🚨 [MapScreen] SEM PERMISSÃO DE LOCALIZAÇÃO!');
+      }
+      if (!coordinates) {
+        console.log('🚨 [MapScreen] SEM COORDENADAS!');
+      }
+      if (locationError) {
+        console.log('🚨 [MapScreen] ERRO DE LOCALIZAÇÃO:', locationError.type);
+      }
+    }
   }, [coordinates, hasPermission, locationError]);
 
   // Map store
@@ -179,6 +190,48 @@ export const MapScreen: React.FC<MapHomeScreenProps> = ({navigation}) => {
       setIsLoadingOccurrences(false);
     }
   }, [isOffline, isLoadingOccurrences]);
+
+  /**
+   * Handle manual location test (DEBUG)
+   */
+  const handleTestLocation = useCallback(async () => {
+    try {
+      // Forçar nova requisição de posição
+      const position = await getCurrentPosition();
+      
+      if (position && mapRef.current) {
+        // Forçar atualização do marcador
+        mapRef.current.animateToCoordinate(
+          { latitude: position.latitude, longitude: position.longitude },
+          1000
+        );
+        
+        // Injetar comando direto no WebView
+        const testCommand = `
+          if (map) {
+            var testIcon = L.divIcon({ 
+              className: '', 
+              html: '<div style="width:30px;height:30px;background:#FF0000;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>', 
+              iconSize: [30, 30], 
+              iconAnchor: [15, 15] 
+            });
+            if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.marker([${position.latitude}, ${position.longitude}], { icon: testIcon }).addTo(map);
+            map.setView([${position.latitude}, ${position.longitude}], 16, { animate: true });
+          }
+        `;
+        
+        // Usar setTimeout para garantir que o WebView está pronto
+        setTimeout(() => {
+          if (mapRef.current) {
+            mapRef.current.injectJS?.(testCommand);
+          }
+        }, 500);
+      }
+    } catch (error) {
+      Alert.alert('Erro', `Falha no teste: ${error.message}`);
+    }
+  }, [getCurrentPosition]);
 
   /**
    * Reload occurrences when screen gains focus (e.g., after creating a new occurrence)
@@ -518,6 +571,15 @@ export const MapScreen: React.FC<MapHomeScreenProps> = ({navigation}) => {
           active={heatmapEnabled}
           disabled={isLoadingHeatmap || (isOffline && !heatmapEnabled)}
           accessibilityLabel={t('map.toggleHeatmap')}
+        />
+
+        {/* DEBUG: Test Location Button */}
+        <FAB
+          icon="🧪"
+          onPress={handleTestLocation}
+          active={false}
+          disabled={false}
+          accessibilityLabel="Testar Localização (DEBUG)"
         />
 
         {/* Heatmap Filters - only show when heatmap is enabled */}

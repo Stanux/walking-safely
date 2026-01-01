@@ -85,6 +85,8 @@
     "risk": "Risco",
     "destination": "Destino",
     "riskWarning": "Atenção: Esta rota passa por áreas de risco",
+    "riskWarningCompact": "Atenção: Esta rota passa por áreas de risco",
+    "riskType": "Tipo",
     "highRiskWarning": "Alerta: Região de alto risco à frente",
     "routeDeviation": "Você saiu da rota",
     "newRouteAvailable": "Nova rota disponível",

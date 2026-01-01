@@ -35,17 +35,41 @@ class GeocodingController extends Controller
     {
         $validated = $request->validated();
 
+        // Log detalhado para debug
+        \Log::info('Geocoding request received', [
+            'query' => $validated['query'],
+            'provider' => config('services.map_provider'),
+            'google_key_set' => !empty(config('services.google_maps.api_key'))
+        ]);
+
         try {
             $results = $this->geocodingService->geocode($validated['query']);
+
+            \Log::info('Geocoding successful', [
+                'query' => $validated['query'],
+                'results_count' => count($results)
+            ]);
 
             return response()->json([
                 'data' => AddressCollection::make($results),
                 'count' => count($results),
             ]);
         } catch (MapProviderException $e) {
+            \Log::error('Geocoding failed', [
+                'query' => $validated['query'],
+                'error' => $e->getMessage(),
+                'provider' => config('services.map_provider')
+            ]);
+
             return response()->json([
                 'error' => 'geocoding_failed',
                 'message' => __('messages.geocoding_failed'),
+                'debug' => [
+                    'provider' => config('services.map_provider'),
+                    'error' => $e->getMessage(),
+                    'env_provider' => env('MAP_PROVIDER'),
+                    'google_key' => !empty(config('services.google_maps.api_key')) ? 'SET' : 'NOT_SET'
+                ]
             ], 503);
         }
     }

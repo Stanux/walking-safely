@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import Svg, {Path, Rect} from 'react-native-svg';
+import Svg, {Path, Rect, Circle} from 'react-native-svg';
 import {IconBase, IconBaseProps} from './IconBase';
 
 interface StatsIconProps extends Omit<IconBaseProps, 'children'> {}
@@ -29,10 +29,10 @@ export const StatsIcon: React.FC<StatsIconProps> = (props) => {
         />
         
         {/* Data points */}
-        <circle cx="3" cy="7" r="2" />
-        <circle cx="7" cy="11" r="2" />
-        <circle cx="11" cy="9" r="2" />
-        <circle cx="17" cy="15" r="2" />
+        <Circle cx="3" cy="7" r="2" />
+        <Circle cx="7" cy="11" r="2" />
+        <Circle cx="11" cy="9" r="2" />
+        <Circle cx="17" cy="15" r="2" />
       </Svg>
     </IconBase>
   );

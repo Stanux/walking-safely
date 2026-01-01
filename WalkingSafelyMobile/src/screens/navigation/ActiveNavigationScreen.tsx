@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  Dimensions,
 } from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {colors, getRiskColor} from '../../theme/colors';
@@ -497,6 +498,7 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
     route,
     sessionId,
     currentInstruction,
+    currentInstructionIndex,
     remainingDistance,
     remainingDuration,
     speed,
@@ -531,15 +533,15 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
     });
 
   // Location tracking
-  const {coordinates, position, startTracking, stopTracking, hasPermission} =
+  const {coordinates, position, startTracking, stopTracking, hasPermission, getCurrentPosition, requestPermission} =
     useLocation({
       autoStartTracking: false,
       updateMapStore: true,
       watchOptions: {
         enableHighAccuracy: true,
-        distanceFilter: 5, // More frequent updates during navigation
-        timeout: 15000,
-        maximumAge: 5000,
+        distanceFilter: 1, // Update every 1 meter during navigation
+        timeout: 10000,
+        maximumAge: 1000, // Accept cached position up to 1 second old
       },
     });
 
@@ -562,11 +564,13 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   const [showRiskDetailsModal, setShowRiskDetailsModal] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [screenData, setScreenData] = useState(Dimensions.get('window'));
 
   // Refs
   const trafficCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isInitializedRef = useRef(false);
   const lastSpokenInstructionRef = useRef<string | null>(null);
+  const lastSpokenDistanceRef = useRef<number | null>(null);
   const lastPositionRef = useRef<{latitude: number; longitude: number} | null>(null);
 
   /**
@@ -630,6 +634,12 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
     console.log('[ActiveNavigation] Origin:', origin);
     console.log('[ActiveNavigation] Destination:', destination);
     
+    // Listen for orientation changes
+    const subscription = Dimensions.addEventListener('change', ({window}) => {
+      console.log('[ActiveNavigation] Screen dimensions changed:', window);
+      setScreenData(window);
+    });
+    
     // Initialize TTS
     ttsService.init().then(() => {
       if (voiceEnabled) {
@@ -638,22 +648,68 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       }
     });
     
-    // Start navigation session with initial route
-    startSession(initialRoute);
+    // Get initial position first, then start navigation
+    const initializeNavigation = async () => {
+      console.log('[ActiveNavigation] Checking location permission...');
+      
+      // First, ensure we have location permission
+      let currentPermission = hasPermission;
+      if (!currentPermission) {
+        console.log('[ActiveNavigation] Requesting location permission...');
+        try {
+          const permissionStatus = await requestPermission();
+          currentPermission = (permissionStatus === 'granted' || permissionStatus === 'limited');
+          console.log('[ActiveNavigation] Permission result:', permissionStatus, 'hasPermission:', currentPermission);
+        } catch (error) {
+          console.log('[ActiveNavigation] Failed to request permission:', error);
+          startSession(initialRoute);
+          return;
+        }
+      }
 
-    // Start location tracking
-    if (hasPermission) {
-      startTracking();
-    }
+      if (currentPermission) {
+        console.log('[ActiveNavigation] Permission granted, getting initial position...');
+        const initialPos = await getCurrentPosition();
+        if (initialPos) {
+          console.log('[ActiveNavigation] Got initial position:', initialPos.latitude, initialPos.longitude);
+          // Start navigation session with initial route
+          startSession(initialRoute);
+          
+          // Start location tracking with navigation-optimized options
+          startTracking({
+            enableHighAccuracy: true,
+            distanceFilter: 1, // Update every 1 meter during navigation (mais sensível)
+            timeout: 10000,
+            maximumAge: 1000, // Accept cached position up to 1 second old
+          });
+        } else {
+          console.log('[ActiveNavigation] Failed to get initial position, starting tracking anyway');
+          startSession(initialRoute);
+          startTracking({
+            enableHighAccuracy: true,
+            distanceFilter: 1, // Update every 1 meter
+            timeout: 10000,
+            maximumAge: 1000,
+          });
+        }
+      } else {
+        console.log('[ActiveNavigation] No location permission, starting session without tracking');
+        startSession(initialRoute);
+      }
+    };
 
-    // Activate wake lock
+    initializeNavigation();
+
+    // Activate wake lock to keep screen on during navigation
     // Requirement 6.7: Keep screen on during navigation
     // Note: setNavigationActive is handled by useBackground with isNavigationMode: true
     activateWakeLock();
+    console.log('[ActiveNavigation] Wake lock activated to keep screen on');
 
     return () => {
       console.log('[ActiveNavigation] Cleaning up navigation session');
       // Cleanup on unmount
+      subscription?.remove();
       stopTracking();
       deactivateWakeLock();
       ttsService.stop();
@@ -668,7 +724,68 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   const handleMapReady = useCallback(() => {
     console.log('[ActiveNavigation] Map is ready');
     setIsMapReady(true);
-  }, []);
+    
+    // Small delay to ensure WebView is fully loaded
+    setTimeout(() => {
+      if (mapRef.current) {
+        console.log('[ActiveNavigation] Configuring map for navigation mode');
+        
+        // First, draw the route if we have it
+        if (routeCoordinates.length > 0) {
+          console.log('[ActiveNavigation] Drawing route on map with', routeCoordinates.length, 'coordinates');
+          mapRef.current.drawRoute(routeCoordinates);
+        }
+        
+        // Set destination marker
+        if (destination) {
+          console.log('[ActiveNavigation] Setting destination marker');
+          mapRef.current.setDestinationMarker(destination);
+        }
+        
+        // Center on user position if available
+        if (userPosition) {
+          console.log('[ActiveNavigation] Centering on user position');
+          mapRef.current.animateToCoordinate(userPosition);
+        }
+        
+        // Enable navigation mode AFTER drawing route and setting position
+        console.log('[ActiveNavigation] Enabling navigation mode');
+        mapRef.current.setNavigationMode(true);
+        mapRef.current.setCompassMode(true);
+        
+        // Set initial heading if available
+        if (userHeading && userHeading !== 0) {
+          console.log('[ActiveNavigation] Setting initial heading:', userHeading);
+          mapRef.current.setHeading(userHeading);
+        }
+      }
+    }, 300); // 300ms delay to ensure WebView is ready
+  }, [routeCoordinates, destination, userPosition, userHeading]);
+
+  /**
+   * Draw route on map when route is available
+   */
+  useEffect(() => {
+    if (isMapReady && mapRef.current && route && routeCoordinates.length > 0) {
+      console.log('[ActiveNavigation] Drawing route with', routeCoordinates.length, 'coordinates');
+      
+      // Small delay to ensure map is ready for drawing
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.drawRoute(routeCoordinates);
+          
+          // Set destination marker
+          if (destination) {
+            mapRef.current.setDestinationMarker(destination);
+          }
+          
+          // Ensure navigation mode is active
+          mapRef.current.setNavigationMode(true);
+          mapRef.current.setCompassMode(true);
+        }
+      }, 100);
+    }
+  }, [isMapReady, route, routeCoordinates, destination]);
 
   /**
    * Center map on user when map is ready and we have position
@@ -676,9 +793,28 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   useEffect(() => {
     if (isMapReady && userPosition && mapRef.current) {
       console.log('[ActiveNavigation] Centering map on user:', userPosition);
-      mapRef.current.animateToCoordinate(userPosition, 500);
+      mapRef.current.animateToCoordinate(userPosition);
+      
+      // Force navigation mode to be active
+      console.log('[ActiveNavigation] Forcing navigation mode active');
+      mapRef.current.setNavigationMode(true);
+      mapRef.current.setCompassMode(true);
+      
+      // Redraw route if needed
+      if (routeCoordinates.length > 0) {
+        console.log('[ActiveNavigation] Redrawing route with', routeCoordinates.length, 'coordinates');
+        mapRef.current.drawRoute(routeCoordinates);
+      }
+      
+      // Force user marker update
+      setTimeout(() => {
+        if (mapRef.current && userPosition) {
+          console.log('[ActiveNavigation] Force updating user position for navigation marker');
+          mapRef.current.animateToCoordinate(userPosition);
+        }
+      }, 500);
     }
-  }, [isMapReady, userPosition]);
+  }, [isMapReady, userPosition, routeCoordinates]);
 
   /**
    * Update position in navigation store when location changes
@@ -686,6 +822,7 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
    */
   useEffect(() => {
     if (coordinates && position) {
+      console.log('[ActiveNavigation] Position update:', coordinates.latitude, coordinates.longitude);
       const currentSpeed = position.speed ? position.speed * 3.6 : 0; // Convert m/s to km/h
       updatePosition(coordinates, currentSpeed);
 
@@ -695,6 +832,19 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       if (position.heading !== undefined && position.heading !== null && position.heading >= 0) {
         // Use GPS heading when available and valid
         newHeading = position.heading;
+        console.log('[ActiveNavigation] Using GPS heading:', newHeading);
+      } else if (lastPositionRef.current) {
+        // Calculate heading based on movement direction
+        const movementHeading = calculateBearing(
+          lastPositionRef.current.latitude, 
+          lastPositionRef.current.longitude, 
+          coordinates.latitude, 
+          coordinates.longitude
+        );
+        if (!isNaN(movementHeading)) {
+          newHeading = movementHeading;
+          console.log('[ActiveNavigation] Calculated movement heading:', newHeading);
+        }
       } else {
         // Calculate heading based on route direction
         const nextPoint = findNextRoutePoint(coordinates.latitude, coordinates.longitude);
@@ -705,14 +855,17 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
             nextPoint.latitude, 
             nextPoint.longitude
           );
+          console.log('[ActiveNavigation] Calculated route heading:', newHeading);
         }
       }
       
       // Update heading if we have a valid value and it changed significantly
       if (newHeading !== null && !isNaN(newHeading)) {
-        // Only update if heading changed by more than 5 degrees to avoid jitter
+        // Only update if heading changed by more than 10 degrees to avoid jitter
         const headingDiff = Math.abs(newHeading - userHeading);
-        if (headingDiff > 5 || headingDiff > 355) {
+        const normalizedDiff = Math.min(headingDiff, 360 - headingDiff); // Handle 359° -> 1° case
+        if (normalizedDiff > 10) {
+          console.log('[ActiveNavigation] Updating heading from', userHeading, 'to', newHeading);
           setUserHeading(newHeading);
         }
       }
@@ -725,7 +878,26 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       
       // Center map on user position during navigation
       if (mapRef.current) {
-        mapRef.current.animateToCoordinate(coordinates, 300);
+        console.log('[ActiveNavigation] Animating map to coordinate:', coordinates);
+        mapRef.current.animateToCoordinate(coordinates);
+        
+        // Update heading if available
+        if (newHeading !== null) {
+          console.log('[ActiveNavigation] Setting map heading:', newHeading);
+          mapRef.current.setHeading(newHeading);
+          // Update state for MapView prop
+          setUserHeading(newHeading);
+        }
+        
+        // Ensure navigation mode stays active
+        console.log('[ActiveNavigation] Ensuring navigation mode is active');
+        mapRef.current.setNavigationMode(true);
+        mapRef.current.setCompassMode(true);
+        
+        // Redraw route to ensure it's visible during navigation
+        if (routeCoordinates.length > 0) {
+          mapRef.current.drawRoute(routeCoordinates);
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -775,7 +947,7 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   const handleCenterMap = useCallback(() => {
     console.log('[ActiveNavigation] handleCenterMap called, userPosition:', userPosition);
     if (userPosition && mapRef.current) {
-      mapRef.current.animateToCoordinate(userPosition, 500);
+      mapRef.current.animateToCoordinate(userPosition);
     }
   }, [userPosition]);
 
@@ -840,16 +1012,53 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   useEffect(() => {
     if (!voiceEnabled || !currentInstruction) return;
     
-    // Create a unique key for this instruction
-    const instructionKey = `${currentInstruction.maneuver}-${currentInstruction.distance}-${currentInstruction.text}`;
+    const distance = currentInstruction.distance;
+    const maneuver = currentInstruction.maneuver;
     
-    // Only speak if instruction changed
+    // Create a unique key for this instruction and distance threshold
+    let distanceThreshold = 0;
+    if (distance <= 15) distanceThreshold = 15;
+    else if (distance <= 100) distanceThreshold = 100;
+    else if (distance <= 300) distanceThreshold = 300;
+    else if (distance <= 800) distanceThreshold = 800;
+    else distanceThreshold = 1000;
+    
+    const instructionKey = `${currentInstructionIndex}-${maneuver}-${distanceThreshold}`;
+    
+    // Only speak if we haven't spoken this exact instruction at this distance threshold
     if (lastSpokenInstructionRef.current !== instructionKey) {
-      lastSpokenInstructionRef.current = instructionKey;
+      console.log('[ActiveNavigation] Checking if should speak:', instructionKey, 'vs last:', lastSpokenInstructionRef.current);
       
-      // Speak at certain distance thresholds
-      const distance = currentInstruction.distance;
-      if (distance <= 50 || distance <= 100 || distance <= 200 || distance <= 500) {
+      let shouldSpeak = false;
+      
+      // Speak at specific distance thresholds
+      if (distance <= 15 && (lastSpokenDistanceRef.current === null || lastSpokenDistanceRef.current > 15)) {
+        shouldSpeak = true;
+        console.log('[ActiveNavigation] Speaking at 15m threshold');
+      }
+      else if (distance <= 100 && distance > 15 && (lastSpokenDistanceRef.current === null || lastSpokenDistanceRef.current > 100)) {
+        shouldSpeak = true;
+        console.log('[ActiveNavigation] Speaking at 100m threshold');
+      }
+      else if (distance <= 300 && distance > 100 && (lastSpokenDistanceRef.current === null || lastSpokenDistanceRef.current > 300)) {
+        shouldSpeak = true;
+        console.log('[ActiveNavigation] Speaking at 300m threshold');
+      }
+      else if (distance <= 800 && distance > 300 && (lastSpokenDistanceRef.current === null || lastSpokenDistanceRef.current > 800)) {
+        shouldSpeak = true;
+        console.log('[ActiveNavigation] Speaking at 800m threshold');
+      }
+      // For first instruction when starting navigation
+      else if (currentInstructionIndex === 0 && lastSpokenInstructionRef.current === null) {
+        shouldSpeak = true;
+        console.log('[ActiveNavigation] Speaking first instruction');
+      }
+      
+      if (shouldSpeak) {
+        lastSpokenInstructionRef.current = instructionKey;
+        lastSpokenDistanceRef.current = distance;
+        
+        console.log('[ActiveNavigation] Speaking instruction:', currentInstruction.text, 'Distance:', distance);
         ttsService.speakManeuver(
           currentInstruction.maneuver,
           distance,
@@ -857,7 +1066,7 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
         );
       }
     }
-  }, [voiceEnabled, currentInstruction]);
+  }, [voiceEnabled, currentInstruction, currentInstructionIndex]);
 
   /**
    * Speak when recalculating
@@ -886,6 +1095,7 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
 
   // Get destination from route
   // Use decoded destination, not from instructions (which may be empty)
+  const isLandscape = screenData.width > screenData.height;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -912,6 +1122,7 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
           followUser={true}
           isNavigating={true}
           userHeading={userHeading}
+          compassMode={true}
           destination={destination}
           routeCoordinates={routeCoordinates}
           occurrences={initialRoute?.occurrences}
@@ -940,21 +1151,24 @@ export const ActiveNavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       </View>
 
       {/* Navigation Info Bar - Requirement 6.4: Display ETA and distance */}
-      <NavigationInfoBar
-        remainingDuration={remainingDuration}
-        remainingDistance={remainingDistance}
-        speed={speed}
-        riskIndex={route?.maxRiskIndex || 0}
-        onRiskPress={handleRiskPress}
-      />
+      {!isLandscape && (
+        <NavigationInfoBar
+          remainingDuration={remainingDuration}
+          remainingDistance={remainingDistance}
+          speed={speed}
+          riskIndex={route?.maxRiskIndex || 0}
+          onRiskPress={handleRiskPress}
+        />
+      )}
 
       {/* Exit Navigation Button - Requirement 6.6: Button to end navigation */}
-      <View style={styles.bottomControls}>
+      <View style={[styles.bottomControls, isLandscape && styles.bottomControlsLandscape]}>
         <Button
           title={t('navigation.endNavigation')}
           variant="danger"
           onPress={handleExitNavigation}
-          fullWidth
+          fullWidth={!isLandscape}
+          style={isLandscape && styles.exitButtonLandscape}
         />
       </View>
 
@@ -1165,6 +1379,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
     borderTopWidth: 1,
     borderTopColor: colors.border.light,
+  },
+  bottomControlsLandscape: {
+    position: 'absolute',
+    bottom: spacing.base,
+    right: spacing.base,
+    left: undefined,
+    width: 200,
+    paddingBottom: spacing.md,
+    borderTopWidth: 0,
+    borderRadius: borderRadius.base,
+    ...shadows.md,
+  },
+  exitButtonLandscape: {
+    paddingHorizontal: spacing.md,
   },
 
   // Recalculating Banner

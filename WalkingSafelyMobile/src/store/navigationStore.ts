@@ -136,6 +136,8 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
       return;
     }
 
+    console.log('[NavigationStore] Updating position:', position, 'Speed:', speed);
+
     // Calculate remaining distance from current position to destination
     const lastInstruction = route.instructions[route.instructions.length - 1];
     const remainingDistance = lastInstruction
@@ -159,23 +161,43 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
         currentInstruction.coordinates,
       );
 
+      console.log('[NavigationStore] Distance to current instruction:', distanceToInstruction, 'meters');
+      console.log('[NavigationStore] Current instruction:', currentInstruction.text);
+
       // If within 30m of instruction point, advance to next
       if (
         distanceToInstruction < 30 &&
         currentInstructionIndex < route.instructions.length - 1
       ) {
         newInstructionIndex = currentInstructionIndex + 1;
+        console.log('[NavigationStore] Advancing to next instruction:', newInstructionIndex);
       }
-    }
+      
+      // Update distance to current instruction for voice prompts
+      const updatedInstruction = {
+        ...currentInstruction,
+        distance: Math.round(distanceToInstruction),
+      };
 
-    set({
-      currentPosition: position,
-      speed: speed ?? get().speed,
-      remainingDistance,
-      remainingDuration,
-      currentInstructionIndex: newInstructionIndex,
-      currentInstruction: route.instructions[newInstructionIndex] || null,
-    });
+      set({
+        currentPosition: position,
+        speed: speed ?? get().speed,
+        remainingDistance,
+        remainingDuration,
+        currentInstructionIndex: newInstructionIndex,
+        currentInstruction: newInstructionIndex === currentInstructionIndex 
+          ? updatedInstruction 
+          : route.instructions[newInstructionIndex] || null,
+      });
+    } else {
+      // No current instruction, just update position
+      set({
+        currentPosition: position,
+        speed: speed ?? get().speed,
+        remainingDistance,
+        remainingDuration,
+      });
+    }
   },
 
   /**

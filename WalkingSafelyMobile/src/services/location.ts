@@ -109,8 +109,8 @@ const DEFAULT_GET_POSITION_OPTIONS: GetPositionOptions = {
 const DEFAULT_WATCH_OPTIONS: WatchPositionOptions = {
   enableHighAccuracy: true,
   timeout: 30000,
-  maximumAge: 30000,
-  distanceFilter: 10, // Update every 10 meters
+  maximumAge: 5000, // Accept cached position up to 5 seconds old
+  distanceFilter: 3, // Update every 3 meters for better navigation tracking
 };
 
 /**
@@ -253,16 +253,13 @@ const activeWatchIds: Set<number> = new Set();
 export const locationService: LocationService = {
   getCurrentPosition: (options?: GetPositionOptions): Promise<Position> => {
     const mergedOptions = {...DEFAULT_GET_POSITION_OPTIONS, ...options};
-    console.log('[LocationService] Getting current position with options:', mergedOptions);
 
     return new Promise((resolve, reject) => {
       Geolocation.getCurrentPosition(
         (response: GeolocationResponse) => {
-          console.log('[LocationService] getCurrentPosition success:', response.coords.latitude, response.coords.longitude);
           resolve(toPosition(response));
         },
         (error: GeolocationError) => {
-          console.log('[LocationService] getCurrentPosition error:', error.code, error.message);
           reject(mapGeolocationError(error));
         },
         mergedOptions,
@@ -276,15 +273,12 @@ export const locationService: LocationService = {
     options?: WatchPositionOptions,
   ): number => {
     const mergedOptions = {...DEFAULT_WATCH_OPTIONS, ...options};
-    console.log('[LocationService] Starting watchPosition with options:', mergedOptions);
 
     const watchId = Geolocation.watchPosition(
       (response: GeolocationResponse) => {
-        console.log('[LocationService] Position received:', response.coords.latitude, response.coords.longitude);
         onPosition(toPosition(response));
       },
       (error: GeolocationError) => {
-        console.log('[LocationService] Position error:', error.code, error.message);
         if (onError) {
           onError(mapGeolocationError(error));
         }
@@ -292,7 +286,6 @@ export const locationService: LocationService = {
       mergedOptions,
     );
 
-    console.log('[LocationService] Watch ID:', watchId);
     activeWatchIds.add(watchId);
     return watchId;
   },

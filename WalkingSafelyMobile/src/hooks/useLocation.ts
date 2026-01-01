@@ -83,9 +83,9 @@ const DEFAULT_OPTIONS: UseLocationOptions = {
   updateMapStore: true,
   watchOptions: {
     enableHighAccuracy: true,
-    distanceFilter: 10,
+    distanceFilter: 3, // Update every 3 meters for better navigation
     timeout: 15000,
-    maximumAge: 10000,
+    maximumAge: 5000, // Accept cached position up to 5 seconds old
   },
 };
 
@@ -171,7 +171,6 @@ export function useLocation(
       if (!isMountedRef.current) {
         return;
       }
-      console.log('[useLocation] Position update:', pos.latitude, pos.longitude);
       setPosition(pos);
       setError(null);
       updateMapStorePosition(pos);
@@ -357,7 +356,6 @@ export function useLocation(
   useEffect(() => {
     const autoRequest = async () => {
       if (mergedOptions.autoRequestPermission && permissionStatus === 'denied') {
-        console.log('[useLocation] Auto-requesting permission...');
         await requestPermission();
       }
     };
@@ -373,16 +371,11 @@ export function useLocation(
    */
   useEffect(() => {
     if (mergedOptions.autoStartTracking && hasPermission && !isTracking) {
-      console.log('[useLocation] Auto-starting tracking, hasPermission:', hasPermission);
       startTracking();
       
       // Also try to get current position immediately
-      getCurrentPosition().then(pos => {
-        if (pos) {
-          console.log('[useLocation] Got initial position:', pos.latitude, pos.longitude);
-        }
-      }).catch(err => {
-        console.log('[useLocation] Failed to get initial position:', err);
+      getCurrentPosition().catch(() => {
+        // Ignore errors, tracking will handle position updates
       });
     }
   }, [

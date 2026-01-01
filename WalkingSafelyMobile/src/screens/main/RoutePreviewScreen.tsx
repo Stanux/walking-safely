@@ -13,6 +13,7 @@ import {
   StatusBar,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {colors, getRiskColor} from '../../theme/colors';
@@ -23,6 +24,8 @@ import {Button} from '../../components/common/Button';
 import {useMapStore} from '../../store/mapStore';
 import {decodePolyline} from '../../components/map/RoutePolyline';
 import {RISK_WARNING_THRESHOLD, RISK_HIGH_THRESHOLD} from '../../utils/constants';
+import {ttsService} from '../../services/tts';
+import {performNetworkDiagnostics, formatDiagnostics, getTroubleshootingSuggestions} from '../../utils/networkDiagnostics';
 import type {RoutePreviewScreenProps} from '../../types/navigation';
 
 const formatDuration = (seconds: number): string => {
@@ -146,6 +149,17 @@ export const RoutePreviewScreen: React.FC<RoutePreviewScreenProps> = ({
 
   const handleStartNavigation = useCallback(() => {
     if (!currentRoute) return;
+    
+    // Play risk warning audio if route has risk
+    const showRiskWarning = currentRoute && currentRoute.maxRiskIndex >= RISK_WARNING_THRESHOLD;
+    if (showRiskWarning) {
+      const riskLevel = currentRoute.maxRiskIndex >= RISK_HIGH_THRESHOLD ? 'alto' : 'moderado';
+      const predominantCrime = 'roubo'; // Default crime type - could be enhanced to get from route data
+      const warningMessage = `Atenção motorista, esta rota passa por áreas de risco ${riskLevel}, com ocorrências predominantes de ${predominantCrime}, fique atento.`;
+      
+      ttsService.speak(warningMessage, true);
+    }
+    
     startNavigation();
     navigation.replace('ActiveNavigation', {
       route: currentRoute,
@@ -156,6 +170,43 @@ export const RoutePreviewScreen: React.FC<RoutePreviewScreenProps> = ({
   const handleGoBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
+
+  const handleRetryConnection = useCallback(async () => {
+    try {
+      const diagnostics = await performNetworkDiagnostics();
+      const report = formatDiagnostics(diagnostics);
+      const suggestions = getTroubleshootingSuggestions(diagnostics);
+      
+      let message = report;
+      if (suggestions.length > 0) {
+        message += '\n\n💡 Sugestões:\n' + suggestions.map(s => `• ${s}`).join('\n');
+      }
+      
+      Alert.alert(
+        'Diagnóstico de Rede',
+        message,
+        [
+          {
+            text: t('common.close'),
+            style: 'cancel',
+          },
+          {
+            text: t('common.retry'),
+            onPress: () => {
+              clearError();
+              calculateRoute(preferSafeRoute);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert(
+        'Erro no Diagnóstico',
+        'Não foi possível executar o diagnóstico de rede.',
+        [{ text: t('common.ok') }]
+      );
+    }
+  }, [t, clearError, calculateRoute, preferSafeRoute]);
 
   const showRiskWarning = currentRoute && currentRoute.maxRiskIndex >= RISK_WARNING_THRESHOLD;
   const riskColor = currentRoute ? getRiskColor(currentRoute.maxRiskIndex) : colors.risk.low;
@@ -191,15 +242,30 @@ export const RoutePreviewScreen: React.FC<RoutePreviewScreenProps> = ({
         {error && !currentRoute && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{t('errors.routeCalculation')}</Text>
-            <Button
-              title={t('common.retry')}
-              onPress={() => {
-                clearError();
-                calculateRoute(preferSafeRoute);
-              }}
-              variant="outline"
-              size="small"
-            />
+            <Text style={styles.errorSubtext}>
+              {error && typeof error === 'object' && 'code' in error && (error as any).code === 'NETWORK_ERROR' 
+                ? 'Verifique sua conexão com a internet e tente novamente.'
+                : 'Ocorreu um erro inesperado. Tente novamente.'}
+            </Text>
+            <View style={styles.errorActions}>
+              <Button
+                title={t('common.retry')}
+                onPress={() => {
+                  clearError();
+                  calculateRoute(preferSafeRoute);
+                }}
+                variant="primary"
+                size="small"
+                style={styles.retryButton}
+              />
+              <Button
+                title="Diagnóstico"
+                onPress={handleRetryConnection}
+                variant="outline"
+                size="small"
+                style={styles.retryButton}
+              />
+            </View>
           </View>
         )}
 
@@ -224,13 +290,25 @@ export const RoutePreviewScreen: React.FC<RoutePreviewScreenProps> = ({
                 <Text style={styles.warningIcon}>⚠️</Text>
                 <View style={styles.warningContent}>
                   <Text style={styles.warningTitle}>
-                    {currentRoute.maxRiskIndex >= RISK_HIGH_THRESHOLD
-                      ? t('navigation.highRiskWarning')
-                      : t('navigation.riskWarning')}
+                    {t('navigation.riskWarningCompact')}
                   </Text>
-                  {currentRoute.warningMessage && (
-                    <Text style={styles.warningMessage}>{currentRoute.warningMessage}</Text>
-                  )}
+                  <View style={styles.riskDetailsRow}>
+                    <View style={styles.riskDetailColumn}>
+                      <Text style={styles.riskDetailLabel}>{t('navigation.riskType')}</Text>
+                      <Text style={styles.riskDetailValue}>
+                        {currentRoute.maxRiskIndex >= RISK_HIGH_THRESHOLD
+                          ? t('route.riskHigh')
+                          : t('route.riskMedium')}
+                      </Text>
+                    </View>
+                    <View style={styles.riskDetailSeparator} />
+                    <View style={styles.riskDetailColumn}>
+                      <Text style={styles.riskDetailLabel}>{t('navigation.predominantCrime')}</Text>
+                      <Text style={styles.riskDetailValue}>
+                        {t('crimeTypes.robbery')}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             )}
@@ -294,27 +372,57 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: componentSpacing.bottomSheetBorderRadius,
     borderTopRightRadius: componentSpacing.bottomSheetBorderRadius,
     paddingHorizontal: componentSpacing.bottomSheetPadding,
-    paddingTop: spacing.lg, paddingBottom: spacing['2xl'],
-    minHeight: 250, ...shadows.lg,
+    paddingTop: spacing.lg, paddingBottom: spacing.lg,
+    maxHeight: '45%', ...shadows.lg,
   },
   loadingContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing['2xl'] },
   loadingText: { ...textStyles.body, color: colors.text.secondary, marginTop: spacing.md },
-  errorContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing['2xl'], gap: spacing.md },
-  errorText: { ...textStyles.body, color: colors.error.main, textAlign: 'center' },
-  routeInfoContainer: { flex: 1 },
+  errorContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing['2xl'], paddingHorizontal: spacing.lg },
+  errorText: { ...textStyles.h5, color: colors.error.main, textAlign: 'center', marginBottom: spacing.sm },
+  errorSubtext: { ...textStyles.body, color: colors.text.secondary, textAlign: 'center', marginBottom: spacing.lg },
+  errorActions: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
+  retryButton: { minWidth: 100 },
+  routeInfoContainer: { flexGrow: 0, flexShrink: 1 },
   destinationContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
   destinationIcon: { fontSize: 20, marginRight: spacing.sm },
   destinationText: { ...textStyles.h5, color: colors.text.primary, flex: 1 },
   warningBanner: {
-    flexDirection: 'row', alignItems: 'center', padding: spacing.md,
+    flexDirection: 'row', alignItems: 'flex-start', padding: spacing.md,
     borderRadius: borderRadius.lg, marginBottom: spacing.md,
   },
   warningBannerMedium: { backgroundColor: colors.warning.light },
   warningBannerHigh: { backgroundColor: colors.error.light },
   warningIcon: { fontSize: 24, marginRight: spacing.sm },
   warningContent: { flex: 1 },
-  warningTitle: { ...textStyles.label, color: colors.text.primary },
+  warningTitle: { ...textStyles.label, color: colors.text.primary, marginBottom: spacing.sm },
   warningMessage: { ...textStyles.caption, color: colors.text.secondary, marginTop: spacing.xs },
+  riskDetailsRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  riskDetailColumn: { 
+    flex: 1,
+    alignItems: 'center',
+  },
+  riskDetailSeparator: {
+    width: 1,
+    height: 30,
+    backgroundColor: colors.border.light,
+    marginHorizontal: spacing.sm,
+  },
+  riskDetailLabel: { 
+    ...textStyles.caption, 
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  riskDetailValue: { 
+    ...textStyles.label, 
+    color: colors.text.primary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   infoCardsContainer: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   infoCard: {
     flex: 1, backgroundColor: colors.background.secondary,

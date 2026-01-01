@@ -103,12 +103,25 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
     .user-marker-navigation {
-      width: 0; height: 0;
-      border-left: 12px solid transparent;
-      border-right: 12px solid transparent;
-      border-bottom: 28px solid #4285F4;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
-      transform-origin: center center;
+      width: 40px !important;
+      height: 40px !important;
+      background: #FF4444 !important;
+      border: 4px solid white !important;
+      border-radius: 50% !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
+      position: relative !important;
+      z-index: 1000 !important;
+    }
+    .user-marker-navigation::after {
+      content: '●' !important;
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      color: white !important;
+      font-size: 24px !important;
+      font-weight: bold !important;
+      line-height: 1 !important;
     }
     .destination-marker {
       width: 30px; height: 30px;
@@ -254,20 +267,19 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       }
     }
     
-    // Enable/disable navigation mode (auto-enables compass mode)
     function setNavigationMode(enabled) {
       isNavigationMode = enabled;
       if (enabled) {
         compassButton.classList.add('active');
         map.setZoom(17);
-        // Update user marker to show arrow
+        // Update user marker to show navigation marker
         if (userMarker) {
           var pos = userMarker.getLatLng();
           var icon = L.divIcon({ 
             className: '', 
             html: '<div class="user-marker-navigation"></div>', 
-            iconSize: [24, 28], 
-            iconAnchor: [12, 14] 
+            iconSize: [40, 40], 
+            iconAnchor: [20, 20] 
           });
           userMarker.setIcon(icon);
         }
@@ -275,6 +287,8 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
         if (currentHeading) {
           setMapRotation(currentHeading);
         }
+        // Ensure compass mode is also enabled
+        isCompassMode = true;
       } else {
         // Update user marker back to circle
         if (userMarker) {
@@ -431,15 +445,20 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
     }
     
     function updateUserPosition(lat, lng, centerMap, heading) {
-      if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
+      if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+        return;
+      }
+      
+      if (!map) {
+        return;
+      }
       
       // Choose marker style based on navigation mode
       var markerClass = isNavigationMode ? 'user-marker-navigation' : 'user-marker';
-      var markerSize = isNavigationMode ? [24, 28] : [20, 20];
-      var markerAnchor = isNavigationMode ? [12, 14] : [10, 10];
+      var markerSize = isNavigationMode ? [40, 40] : [20, 20];
+      var markerAnchor = isNavigationMode ? [20, 20] : [10, 10];
       
-      // Create marker HTML
-      // In navigation mode, arrow always points UP (forward) - map rotates instead
+      // Create marker HTML - simplified for better visibility
       var markerHtml = '<div class="' + markerClass + '"></div>';
       
       if (userMarker) { 
@@ -490,11 +509,30 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
     
     function drawRoute(coords) {
       clearRoute();
-      if (!coords || !Array.isArray(coords) || coords.length < 2) return;
-      var latLngs = coords.filter(function(c) { return c && typeof c.lat === 'number' && typeof c.lng === 'number'; }).map(function(c) { return [c.lat, c.lng]; });
-      if (latLngs.length < 2) return;
-      routePolyline = L.polyline(latLngs, { color: '#4285F4', weight: 5, opacity: 0.8 }).addTo(map);
-      map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+      if (!coords || !Array.isArray(coords) || coords.length < 2) {
+        return;
+      }
+      var latLngs = coords.filter(function(c) { 
+        return c && typeof c.lat === 'number' && typeof c.lng === 'number' && 
+               !isNaN(c.lat) && !isNaN(c.lng); 
+      }).map(function(c) { return [c.lat, c.lng]; });
+      
+      if (latLngs.length < 2) {
+        return;
+      }
+      
+      routePolyline = L.polyline(latLngs, { 
+        color: '#4285F4', 
+        weight: 6, 
+        opacity: 0.9,
+        lineJoin: 'round',
+        lineCap: 'round'
+      }).addTo(map);
+      
+      // Don't auto-fit bounds during navigation - let user position control the view
+      if (!isNavigationMode) {
+        map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+      }
     }
     
     function clearRoute() { if (routePolyline) { map.removeLayer(routePolyline); routePolyline = null; } }
@@ -636,13 +674,39 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
     }));
 
     useEffect(() => {
-      if (!userPosition?.latitude || !userPosition?.longitude) return;
-      if (!isMapReady) { pendingPositionRef.current = userPosition; return; }
+      if (!userPosition?.latitude || !userPosition?.longitude) {
+        // FALLBACK: Se não tem posição real, criar marcador de teste em São Paulo (apenas uma vez)
+        if (isMapReady && showUserMarker && !hasInitializedRef.current) {
+          hasInitializedRef.current = true;
+          const fallbackCommand = `
+            if (map && !userMarker) {
+              var fallbackIcon = L.divIcon({ 
+                className: '', 
+                html: '<div style="width:25px;height:25px;background:#FFA500;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>', 
+                iconSize: [25, 25], 
+                iconAnchor: [12, 12] 
+              });
+              userMarker = L.marker([-23.5505, -46.6333], { icon: fallbackIcon }).addTo(map);
+              map.setView([-23.5505, -46.6333], 15, { animate: true });
+            }
+          `;
+          setTimeout(() => injectJS(fallbackCommand), 1000);
+        }
+        return;
+      }
+      
+      if (!isMapReady) { 
+        pendingPositionRef.current = userPosition; 
+        return; 
+      }
+      
       if (!hasInitializedRef.current) {
         hasInitializedRef.current = true;
-        injectJS(`updateUserPosition(${userPosition.latitude}, ${userPosition.longitude}, true, ${userHeading || 0})`);
+        const command = `updateUserPosition(${userPosition.latitude}, ${userPosition.longitude}, true, ${userHeading || 0})`;
+        injectJS(command);
       } else if (showUserMarker) {
-        injectJS(`updateUserPosition(${userPosition.latitude}, ${userPosition.longitude}, false, ${userHeading || 0})`);
+        const command = `updateUserPosition(${userPosition.latitude}, ${userPosition.longitude}, false, ${userHeading || 0})`;
+        injectJS(command);
       }
     }, [isMapReady, userPosition, showUserMarker, userHeading, injectJS]);
 

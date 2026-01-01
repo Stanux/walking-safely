@@ -45,7 +45,7 @@ return [
     |
     */
 
-    'map_provider' => env('MAP_PROVIDER', 'nominatim'),
+    'map_provider' => 'nominatim', // Forçado para nominatim
 
     'map_fallback_order' => ['nominatim', 'google', 'here', 'mapbox'],
 
@@ -70,6 +70,13 @@ return [
     'nominatim' => [
         'monthly_quota' => env('NOMINATIM_MONTHLY_QUOTA', 100000),
         'cost_alert_threshold' => 0, // Free service
+    ],
+
+    'hybrid_traffic' => [
+        'max_traffic_requests_per_hour' => env('HYBRID_TRAFFIC_MAX_REQUESTS_HOUR', 100),
+        'cache_hit_ratio_threshold' => env('HYBRID_TRAFFIC_CACHE_THRESHOLD', 0.7),
+        'fallback_to_estimated' => env('HYBRID_TRAFFIC_FALLBACK', true),
+        'primary_traffic_provider' => env('HYBRID_TRAFFIC_PROVIDER', 'google'),
     ],
 
 ];

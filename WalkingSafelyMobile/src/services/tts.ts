@@ -120,94 +120,90 @@ class TTSService {
   /**
    * Speak turn instruction based on maneuver type
    */
-  async speakManeuver(maneuver: string, distance: number, streetName?: string): Promise<void> {
+  async speakManeuver(maneuver: string, distance: number, fullInstruction?: string): Promise<void> {
     const distanceText = this.formatDistance(distance);
-    let instructionKey = '';
+    let instructionText = '';
 
-    // Map maneuver types to translation keys
-    switch (maneuver) {
-      case 'turn-left':
-        instructionKey = 'navigation.instructions.turnLeft';
-        break;
-      case 'turn-right':
-        instructionKey = 'navigation.instructions.turnRight';
-        break;
-      case 'turn-slight-left':
-        instructionKey = 'navigation.instructions.turnSlightLeft';
-        break;
-      case 'turn-slight-right':
-        instructionKey = 'navigation.instructions.turnSlightRight';
-        break;
-      case 'turn-sharp-left':
-        instructionKey = 'navigation.instructions.turnSharpLeft';
-        break;
-      case 'turn-sharp-right':
-        instructionKey = 'navigation.instructions.turnSharpRight';
-        break;
-      case 'uturn-left':
-        instructionKey = 'navigation.instructions.uturnLeft';
-        break;
-      case 'uturn-right':
-        instructionKey = 'navigation.instructions.uturnRight';
-        break;
-      case 'uturn':
-        instructionKey = 'navigation.instructions.uturn';
-        break;
-      case 'straight':
-        instructionKey = 'navigation.instructions.straight';
-        break;
-      case 'merge':
-        instructionKey = 'navigation.instructions.merge';
-        break;
-      case 'ramp-left':
-        instructionKey = 'navigation.instructions.rampLeft';
-        break;
-      case 'ramp-right':
-        instructionKey = 'navigation.instructions.rampRight';
-        break;
-      case 'fork-left':
-        instructionKey = 'navigation.instructions.forkLeft';
-        break;
-      case 'fork-right':
-        instructionKey = 'navigation.instructions.forkRight';
-        break;
-      case 'roundabout-left':
-        instructionKey = 'navigation.instructions.roundaboutLeft';
-        break;
-      case 'roundabout-right':
-        instructionKey = 'navigation.instructions.roundaboutRight';
-        break;
-      case 'roundabout':
-        instructionKey = 'navigation.instructions.roundabout';
-        break;
-      case 'arrive':
-        instructionKey = 'navigation.instructions.arrive';
-        break;
-      case 'depart':
-        instructionKey = 'navigation.instructions.depart';
-        break;
-      default:
-        instructionKey = 'navigation.instructions.continue';
-    }
-
-    // Get translated instruction
-    const instruction = i18n.t(instructionKey);
-    
-    // Format the complete message
-    let text = '';
-    if (maneuver === 'arrive' || maneuver === 'depart') {
-      text = instruction;
-    } else {
-      // Use translated format: "Em {distance}, {instruction}"
-      const inText = i18n.language.startsWith('pt') ? 'Em' : 'In';
-      text = `${inText} ${distanceText}, ${instruction.toLowerCase()}`;
-      
-      if (streetName && maneuver !== 'arrive') {
-        const onText = i18n.language.startsWith('pt') ? 'na' : 'on';
-        text += ` ${onText} ${streetName}`;
+    // Extract street name from full instruction if available
+    let streetName = '';
+    if (fullInstruction) {
+      // Try to extract street name from instruction text
+      const streetMatch = fullInstruction.match(/(?:na|on|onto|into)\s+(.+?)(?:\s|$|,)/i);
+      if (streetMatch) {
+        streetName = streetMatch[1].trim();
       }
     }
 
+    // Map maneuver types to Portuguese instructions
+    switch (maneuver) {
+      case 'turn-left':
+        instructionText = streetName ? `vire à esquerda na ${streetName}` : 'vire à esquerda';
+        break;
+      case 'turn-right':
+        instructionText = streetName ? `vire à direita na ${streetName}` : 'vire à direita';
+        break;
+      case 'turn-slight-left':
+        instructionText = streetName ? `mantenha-se à esquerda na ${streetName}` : 'mantenha-se à esquerda';
+        break;
+      case 'turn-slight-right':
+        instructionText = streetName ? `mantenha-se à direita na ${streetName}` : 'mantenha-se à direita';
+        break;
+      case 'turn-sharp-left':
+        instructionText = streetName ? `vire completamente à esquerda na ${streetName}` : 'vire completamente à esquerda';
+        break;
+      case 'turn-sharp-right':
+        instructionText = streetName ? `vire completamente à direita na ${streetName}` : 'vire completamente à direita';
+        break;
+      case 'uturn-left':
+      case 'uturn-right':
+      case 'uturn':
+        instructionText = 'faça o retorno';
+        break;
+      case 'straight':
+      case 'continue':
+        instructionText = streetName ? `continue em frente na ${streetName}` : 'continue em frente';
+        break;
+      case 'merge':
+        instructionText = streetName ? `entre na ${streetName}` : 'entre na via';
+        break;
+      case 'ramp-left':
+        instructionText = 'pegue a saída à esquerda';
+        break;
+      case 'ramp-right':
+        instructionText = 'pegue a saída à direita';
+        break;
+      case 'fork-left':
+        instructionText = 'mantenha-se à esquerda na bifurcação';
+        break;
+      case 'fork-right':
+        instructionText = 'mantenha-se à direita na bifurcação';
+        break;
+      case 'roundabout-left':
+      case 'roundabout-right':
+      case 'roundabout':
+        instructionText = 'entre na rotatória';
+        break;
+      case 'arrive':
+        instructionText = 'você chegou ao seu destino';
+        break;
+      case 'depart':
+        instructionText = streetName ? `siga pela ${streetName}` : 'inicie a rota';
+        break;
+      default:
+        instructionText = streetName ? `continue na ${streetName}` : 'continue em frente';
+    }
+
+    // Format the complete message
+    let text = '';
+    if (maneuver === 'arrive') {
+      text = instructionText;
+    } else if (distance <= 10) {
+      text = instructionText; // Don't say distance for very close instructions
+    } else {
+      text = `Em ${distanceText}, ${instructionText}`;
+    }
+
+    console.log('[TTS] Speaking:', text);
     await this.speak(text);
   }
 
