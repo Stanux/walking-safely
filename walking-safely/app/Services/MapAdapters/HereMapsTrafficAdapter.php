@@ -2,8 +2,11 @@
 
 namespace App\Services\MapAdapters;
 
-use App\Models\Route;
-use App\Services\MapAdapters\Contracts\MapAdapterInterface;
+use App\ValueObjects\Address;
+use App\ValueObjects\Coordinates;
+use App\ValueObjects\Route;
+use App\ValueObjects\RouteOptions;
+use App\ValueObjects\TrafficData;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -41,6 +44,14 @@ class HereMapsTrafficAdapter extends AbstractMapAdapter
     /**
      * {@inheritdoc}
      */
+    public function getProviderName(): string
+    {
+        return self::PROVIDER_NAME;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     protected function doGeocode(string $address): array
     {
         $params = [
@@ -70,8 +81,11 @@ class HereMapsTrafficAdapter extends AbstractMapAdapter
     /**
      * {@inheritdoc}
      */
-    protected function doReverseGeocode(float $lat, float $lng): ?Address
+    protected function doReverseGeocode(Coordinates $coordinates): Address
     {
+        $lat = $coordinates->latitude;
+        $lng = $coordinates->longitude;
+        
         $params = [
             'at' => "{$lat},{$lng}",
             'apikey' => $this->apiKey,
@@ -81,54 +95,47 @@ class HereMapsTrafficAdapter extends AbstractMapAdapter
         $response = $this->httpGet(self::REVERSE_GEOCODING_API_URL, $params);
         
         if (!isset($response['items'][0])) {
-            return null;
+            return new Address(
+                formattedAddress: '',
+                coordinates: $coordinates
+            );
         }
 
         $item = $response['items'][0];
         
-        return Address::fromArray([
-            'formatted_address' => $item['title'] ?? '',
-            'street_number' => $item['address']['houseNumber'] ?? '',
-            'street_name' => $item['address']['street'] ?? '',
-            'neighborhood' => $item['address']['district'] ?? '',
-            'city' => $item['address']['city'] ?? '',
-            'state' => $item['address']['state'] ?? '',
-            'postal_code' => $item['address']['postalCode'] ?? '',
-            'country' => $item['address']['countryName'] ?? '',
-            'latitude' => $lat,
-            'longitude' => $lng
-        ]);
+        return new Address(
+            formattedAddress: $item['title'] ?? '',
+            coordinates: $coordinates,
+            street: $item['address']['street'] ?? null,
+            number: $item['address']['houseNumber'] ?? null,
+            neighborhood: $item['address']['district'] ?? null,
+            city: $item['address']['city'] ?? null,
+            state: $item['address']['state'] ?? null,
+            country: $item['address']['countryName'] ?? null,
+            postalCode: $item['address']['postalCode'] ?? null
+        );
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function doGetRoute(array $waypoints, array $options = []): Route
-    {
-        $origin = $waypoints[0];
-        $destination = end($waypoints);
-        
+    protected function doCalculateRoute(
+        Coordinates $origin,
+        Coordinates $destination,
+        ?RouteOptions $options = null
+    ): Route {
         $params = [
-            'transportMode' => $options['mode'] ?? 'pedestrian',
-            'origin' => "{$origin['lat']},{$origin['lng']}",
-            'destination' => "{$destination['lat']},{$destination['lng']}",
+            'transportMode' => $options?->mode ?? 'pedestrian',
+            'origin' => "{$origin->latitude},{$origin->longitude}",
+            'destination' => "{$destination->latitude},{$destination->longitude}",
             'return' => 'polyline,summary,instructions,travelSummary',
             'apikey' => $this->apiKey,
             'lang' => 'pt-BR'
         ];
 
-        // Adiciona waypoints intermediários se existirem
-        if (count($waypoints) > 2) {
-            $via = [];
-            for ($i = 1; $i < count($waypoints) - 1; $i++) {
-                $via[] = "{$waypoints[$i]['lat']},{$waypoints[$i]['lng']}";
-            }
-            $params['via'] = implode('!', $via);
-        }
-
         // Inclui dados de trânsito se disponível
-        if (($options['mode'] ?? 'pedestrian') === 'car') {
-            $params['departureTime'] = $options['departure_time'] ?? 'now';
+        if (($options?->mode ?? 'pedestrian') === 'car') {
+            $params['departureTime'] = 'now';
             $params['traffic'] = 'enabled';
         }
 
@@ -142,11 +149,11 @@ class HereMapsTrafficAdapter extends AbstractMapAdapter
         $section = $route['sections'][0];
         
         return Route::fromArray([
+            'origin' => $origin,
+            'destination' => $destination,
             'distance' => $section['travelSummary']['length'], // metros
             'duration' => $section['travelSummary']['duration'], // segundos
-            'coordinates' => $this->decodePolyline($section['polyline']),
-            'instructions' => $this->parseInstructions($section['actions'] ?? []),
-            'traffic_duration' => $section['travelSummary']['trafficDelay'] ?? null,
+            'polyline' => $section['polyline'] ?? '',
             'provider' => self::PROVIDER_NAME
         ]);
     }
@@ -154,16 +161,62 @@ class HereMapsTrafficAdapter extends AbstractMapAdapter
     /**
      * {@inheritdoc}
      */
+    protected function doCalculateAlternativeRoutes(
+        Coordinates $origin,
+        Coordinates $destination,
+        int $count = 3
+    ): array {
+        $params = [
+            'transportMode' => 'pedestrian',
+            'origin' => "{$origin->latitude},{$origin->longitude}",
+            'destination' => "{$destination->latitude},{$destination->longitude}",
+            'return' => 'polyline,summary,instructions,travelSummary',
+            'alternatives' => $count,
+            'apikey' => $this->apiKey,
+            'lang' => 'pt-BR'
+        ];
+
+        $response = $this->httpGet(self::ROUTING_API_URL, $params);
+        
+        if (!isset($response['routes']) || empty($response['routes'])) {
+            return [];
+        }
+
+        return array_map(function ($route) use ($origin, $destination) {
+            $section = $route['sections'][0];
+            return Route::fromArray([
+                'origin' => $origin,
+                'destination' => $destination,
+                'distance' => $section['travelSummary']['length'],
+                'duration' => $section['travelSummary']['duration'],
+                'polyline' => $section['polyline'] ?? '',
+                'provider' => self::PROVIDER_NAME
+            ]);
+        }, $response['routes']);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     protected function doGetTrafficData(Route $route): TrafficData
     {
-        // HERE inclui dados de trânsito no roteamento, mas podemos buscar dados específicos
-        $coordinates = $route->coordinates;
-        if (empty($coordinates)) {
-            return $this->getEstimatedTrafficData($route);
+        // HERE inclui dados de trânsito no roteamento
+        // Usa os waypoints da rota para consultar trânsito
+        $waypoints = $route->waypoints;
+        
+        if (empty($waypoints)) {
+            // Se não há waypoints, usa origin e destination
+            $waypoints = [
+                ['lat' => $route->origin->latitude, 'lng' => $route->origin->longitude],
+                ['lat' => $route->destination->latitude, 'lng' => $route->destination->longitude]
+            ];
         }
 
         // Pega alguns pontos da rota para consultar trânsito
-        $samplePoints = $this->sampleRoutePoints($coordinates, 5);
+        $samplePoints = $this->sampleRoutePoints(
+            array_map(fn($wp) => ['lat' => $wp->latitude ?? $wp['lat'], 'lng' => $wp->longitude ?? $wp['lng']], $waypoints),
+            5
+        );
         $trafficData = [];
         
         foreach ($samplePoints as $point) {
@@ -183,6 +236,10 @@ class HereMapsTrafficAdapter extends AbstractMapAdapter
                     'error' => $e->getMessage()
                 ]);
             }
+        }
+
+        if (empty($trafficData)) {
+            return $this->getEstimatedTrafficData($route);
         }
 
         return $this->aggregateTrafficData($trafficData, $route);

@@ -131,7 +131,7 @@ class RiskService
             return 0;
         }
 
-        return $weightedSum / $totalWeight;
+        return min(100, $weightedSum / $totalWeight);
     }
 
     /**
@@ -160,7 +160,7 @@ class RiskService
             return 0;
         }
 
-        return $weightedSum / $totalWeight;
+        return min(100, $weightedSum / $totalWeight);
     }
 
     /**
@@ -180,7 +180,7 @@ class RiskService
             return 0;
         }
 
-        return ($totalConfidence / $maxPossibleConfidence) * 100;
+        return min(100, ($totalConfidence / $maxPossibleConfidence) * 100);
     }
 
     /**

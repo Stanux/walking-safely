@@ -65,7 +65,7 @@ Route::prefix('auth')->group(function () {
 | Route Calculation Routes
 |--------------------------------------------------------------------------
 */
-Route::prefix('routes')->group(function () {
+Route::prefix('routes')->middleware('auth:sanctum')->group(function () {
     Route::post('/', [RouteController::class, 'calculate'])->name('routes.calculate');
     Route::post('/recalculate', [RouteController::class, 'recalculate'])->name('routes.recalculate');
 });
@@ -76,9 +76,10 @@ Route::prefix('routes')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('occurrences')->group(function () {
-    Route::get('/', [OccurrenceController::class, 'index'])->name('occurrences.index');
-    Route::post('/', [OccurrenceController::class, 'store'])->name('occurrences.store');
-    Route::get('/{id}', [OccurrenceController::class, 'show'])->name('occurrences.show');
+    Route::get('/', [OccurrenceController::class, 'index'])->middleware('auth:sanctum')->name('occurrences.index');
+    Route::post('/', [OccurrenceController::class, 'store'])->middleware('auth:sanctum')->name('occurrences.store');
+    Route::get('/{id}', [OccurrenceController::class, 'show'])->middleware('auth:sanctum')->name('occurrences.show');
+    Route::delete('/{id}', [OccurrenceController::class, 'destroy'])->middleware('auth:sanctum')->name('occurrences.destroy');
 });
 
 /*
@@ -86,15 +87,15 @@ Route::prefix('occurrences')->group(function () {
 | Geocoding Routes
 |--------------------------------------------------------------------------
 */
-Route::get('/geocode', [GeocodingController::class, 'geocode'])->name('geocode');
-Route::get('/reverse-geocode', [GeocodingController::class, 'reverseGeocode'])->name('reverse-geocode');
+Route::get('/geocode', [GeocodingController::class, 'geocode'])->middleware('auth:sanctum')->name('geocode');
+Route::get('/reverse-geocode', [GeocodingController::class, 'reverseGeocode'])->middleware('auth:sanctum')->name('reverse-geocode');
 
 /*
 |--------------------------------------------------------------------------
 | Alert Routes
 |--------------------------------------------------------------------------
 */
-Route::prefix('alerts')->group(function () {
+Route::prefix('alerts')->middleware('auth:sanctum')->group(function () {
     Route::get('/check', [AlertController::class, 'check'])->name('alerts.check');
     Route::get('/preferences', [AlertController::class, 'getPreferences'])->name('alerts.preferences.get');
     Route::put('/preferences', [AlertController::class, 'updatePreferences'])->name('alerts.preferences.update');
@@ -105,7 +106,7 @@ Route::prefix('alerts')->group(function () {
 | Heatmap Routes
 |--------------------------------------------------------------------------
 */
-Route::prefix('heatmap')->group(function () {
+Route::prefix('heatmap')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [HeatmapController::class, 'index'])->name('heatmap.index');
     Route::get('/regions', [HeatmapController::class, 'byRegion'])->name('heatmap.regions');
     Route::get('/distribution', [HeatmapController::class, 'distribution'])->name('heatmap.distribution');
@@ -116,7 +117,7 @@ Route::prefix('heatmap')->group(function () {
 | Time Series Routes
 |--------------------------------------------------------------------------
 */
-Route::prefix('timeseries')->group(function () {
+Route::prefix('timeseries')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [TimeSeriesController::class, 'index'])->name('timeseries.index');
     Route::get('/hourly', [TimeSeriesController::class, 'hourlyPattern'])->name('timeseries.hourly');
     Route::get('/daily', [TimeSeriesController::class, 'dayOfWeekPattern'])->name('timeseries.daily');

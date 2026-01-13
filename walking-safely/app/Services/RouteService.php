@@ -29,9 +29,10 @@ use Illuminate\Support\Facades\Log;
 class RouteService
 {
     /**
-     * Maximum distance increase allowed for safe routes (20%).
+     * Maximum distance increase allowed for safe routes (100%).
+     * Allows significantly longer routes if they reduce risk exposure.
      */
-    public const MAX_SAFE_ROUTE_DISTANCE_INCREASE = 1.20;
+    public const MAX_SAFE_ROUTE_DISTANCE_INCREASE = 2.00;
 
     /**
      * Threshold for significant time increase (10%).
@@ -80,8 +81,34 @@ class RouteService
             return $this->calculateSafeRoute($origin, $destination);
         }
 
+        // For fastest route, always return the shortest distance route
+        return $this->calculateFastestRoute($origin, $destination);
+    }
+
+    /**
+     * Calculate the fastest (shortest) route.
+     *
+     * @see Requirement 7.1 - Fastest route prioritizes distance/time over safety
+     *
+     * @param Coordinates $origin Starting point
+     * @param Coordinates $destination Ending point
+     * @return RouteWithRisk The fastest route with risk analysis
+     * @throws MapProviderException When route calculation fails
+     */
+    public function calculateFastestRoute(
+        Coordinates $origin,
+        Coordinates $destination
+    ): RouteWithRisk {
+        // Get the default (shortest) route
         $route = $this->mapAdapter->calculateRoute($origin, $destination);
         $riskAnalysis = $this->analyzeRouteRisk($route);
+
+        Log::info('[RouteService] Fastest route calculated', [
+            'distance' => $route->distance,
+            'duration' => $route->duration,
+            'max_risk' => $riskAnalysis->maxRiskIndex,
+            'avg_risk' => $riskAnalysis->averageRiskIndex,
+        ]);
 
         return $this->buildRouteWithRisk($route, $riskAnalysis);
     }
@@ -215,6 +242,8 @@ class RouteService
         }
 
         // Select route with lowest max risk
+        // If risks are equal, prefer the route that passes through fewer high-risk regions
+        // If still equal, prefer a longer route (more likely to avoid risk areas)
         usort($eligibleRoutes, function ($a, $b) {
             // Primary: lower max risk
             $riskDiff = $a['analysis']->maxRiskIndex <=> $b['analysis']->maxRiskIndex;
@@ -226,11 +255,28 @@ class RouteService
             if ($avgDiff !== 0) {
                 return $avgDiff;
             }
-            // Tertiary: shorter distance
-            return $a['route']->distance <=> $b['route']->distance;
+            // Tertiary: fewer high-risk regions
+            $highRiskCountA = $a['analysis']->highRiskRegionCount ?? 0;
+            $highRiskCountB = $b['analysis']->highRiskRegionCount ?? 0;
+            $highRiskDiff = $highRiskCountA <=> $highRiskCountB;
+            if ($highRiskDiff !== 0) {
+                return $highRiskDiff;
+            }
+            // Quaternary: if all risk metrics are equal, prefer LONGER route
+            // (longer routes are more likely to go around risk areas)
+            return $b['route']->distance <=> $a['route']->distance;
         });
 
         $safest = $eligibleRoutes[0];
+        
+        Log::info('[RouteService] Safe route calculated', [
+            'distance' => $safest['route']->distance,
+            'duration' => $safest['route']->duration,
+            'max_risk' => $safest['analysis']->maxRiskIndex,
+            'avg_risk' => $safest['analysis']->averageRiskIndex,
+            'alternatives_count' => count($routes),
+        ]);
+
         return $this->buildRouteWithRisk($safest['route'], $safest['analysis']);
     }
 

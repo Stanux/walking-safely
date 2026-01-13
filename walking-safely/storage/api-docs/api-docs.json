@@ -1,0 +1,4063 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Walking Safely API",
+        "description": "API para o aplicativo Walking Safely - Navegação segura com análise de risco em tempo real",
+        "contact": {
+            "name": "Walking Safely Team",
+            "email": "suporte@walkingsafely.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000/api",
+            "description": "Servidor de Desenvolvimento"
+        },
+        {
+            "url": "https://api.walkingsafely.com/api",
+            "description": "Servidor de Produção"
+        }
+    ],
+    "paths": {
+        "/admin/moderation": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Fila de moderação",
+                "description": "Retorna itens pendentes de moderação",
+                "operationId": "getModerationQueue",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Limite de itens (padrão: 50)",
+                        "schema": {
+                            "type": "integer",
+                            "default": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Fila de moderação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ModerationItem"
+                                            }
+                                        },
+                                        "statistics": {
+                                            "properties": {
+                                                "pending": {
+                                                    "type": "integer"
+                                                },
+                                                "approved_today": {
+                                                    "type": "integer"
+                                                },
+                                                "rejected_today": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão de administrador"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/moderation/{id}/approve": {
+            "post": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Aprovar item de moderação",
+                "description": "Aprova um item pendente de moderação",
+                "operationId": "approveModeration",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID do item de moderação",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notes": {
+                                        "type": "string",
+                                        "example": "Aprovado após verificação",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Item aprovado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/ModerationItem"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    },
+                    "404": {
+                        "description": "Item não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/moderation/{id}/reject": {
+            "post": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Rejeitar item de moderação",
+                "description": "Rejeita um item pendente de moderação",
+                "operationId": "rejectModeration",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID do item de moderação",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notes": {
+                                        "type": "string",
+                                        "example": "Informações insuficientes",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Item rejeitado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/ModerationItem"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    },
+                    "404": {
+                        "description": "Item não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/taxonomy/categories": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Listar categorias de crime",
+                "description": "Retorna todas as categorias de crime com hierarquia",
+                "operationId": "getCategories",
+                "responses": {
+                    "200": {
+                        "description": "Lista de categorias",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CrimeCategory"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Criar categoria de crime",
+                "description": "Cria uma nova categoria de crime",
+                "operationId": "createCategory",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "slug"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Nova categoria"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "nova-categoria"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "parent_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Categoria criada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CrimeCategory"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    },
+                    "422": {
+                        "description": "Erro de validação"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/taxonomy/categories/{id}": {
+            "put": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Atualizar categoria de crime",
+                "description": "Atualiza uma categoria de crime. Cria versão antes de atualizar.",
+                "operationId": "updateCategory",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da categoria",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Crimes contra o patrimônio"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "crimes-patrimonio"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "parent_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Categoria atualizada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CrimeCategory"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    },
+                    "404": {
+                        "description": "Categoria não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/translations": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Listar traduções",
+                "description": "Retorna todas as traduções para um locale específico",
+                "operationId": "getTranslations",
+                "parameters": [
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Código do locale",
+                        "schema": {
+                            "type": "string",
+                            "default": "pt_BR",
+                            "enum": [
+                                "pt_BR",
+                                "en",
+                                "es"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de traduções",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Translation"
+                                            }
+                                        },
+                                        "locale": {
+                                            "type": "string"
+                                        },
+                                        "supported_locales": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Atualizar tradução",
+                "description": "Atualiza ou cria uma tradução. Mantém histórico de versões.",
+                "operationId": "updateTranslation",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "key",
+                                    "locale",
+                                    "value"
+                                ],
+                                "properties": {
+                                    "key": {
+                                        "type": "string",
+                                        "example": "messages.welcome"
+                                    },
+                                    "locale": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pt_BR",
+                                            "en",
+                                            "es"
+                                        ],
+                                        "example": "pt_BR"
+                                    },
+                                    "value": {
+                                        "type": "string",
+                                        "example": "Bem-vindo ao Walking Safely"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tradução atualizada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Translation"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    },
+                    "422": {
+                        "description": "Erro de validação"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/translations/export": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Exportar traduções",
+                "description": "Exporta todas as traduções de um locale em formato JSON",
+                "operationId": "exportTranslations",
+                "parameters": [
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "description": "Código do locale",
+                        "schema": {
+                            "type": "string",
+                            "default": "pt_BR",
+                            "enum": [
+                                "pt_BR",
+                                "en",
+                                "es"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Traduções exportadas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        },
+                                        "locale": {
+                                            "type": "string"
+                                        },
+                                        "exported_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/translations/import": {
+            "post": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Importar traduções",
+                "description": "Importa traduções de um arquivo JSON para um locale",
+                "operationId": "importTranslations",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "locale",
+                                    "translations"
+                                ],
+                                "properties": {
+                                    "locale": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pt_BR",
+                                            "en",
+                                            "es"
+                                        ],
+                                        "example": "pt_BR"
+                                    },
+                                    "translations": {
+                                        "type": "object",
+                                        "example": {
+                                            "messages.welcome": "Bem-vindo",
+                                            "messages.goodbye": "Até logo"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Traduções importadas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "count": {
+                                            "type": "integer",
+                                            "example": 25
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    },
+                    "422": {
+                        "description": "Erro de validação"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/alerts/check": {
+            "get": {
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Verificar alertas",
+                "description": "Verifica condições de alerta para a posição atual. Distância de alerta varia com a velocidade.",
+                "operationId": "checkAlerts",
+                "parameters": [
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "description": "Latitude atual",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "example": -23.5505
+                        }
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "description": "Longitude atual",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "example": -46.6333
+                        }
+                    },
+                    {
+                        "name": "speed",
+                        "in": "query",
+                        "description": "Velocidade atual em km/h",
+                        "schema": {
+                            "type": "number",
+                            "maximum": 300,
+                            "minimum": 0,
+                            "example": 5
+                        }
+                    },
+                    {
+                        "name": "upcoming_waypoints",
+                        "in": "query",
+                        "description": "Próximos waypoints da rota (JSON array)",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "properties": {
+                                    "latitude": {
+                                        "type": "number"
+                                    },
+                                    "longitude": {
+                                        "type": "number"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resultado da verificação de alertas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "alerts": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Alert"
+                                                    }
+                                                },
+                                                "alert_distance": {
+                                                    "type": "number",
+                                                    "example": 100
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/alerts/preferences": {
+            "get": {
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Obter preferências de alertas",
+                "description": "Retorna as preferências de alertas do usuário autenticado",
+                "operationId": "getAlertPreferences",
+                "responses": {
+                    "200": {
+                        "description": "Preferências de alertas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/AlertPreference"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Atualizar preferências de alertas",
+                "description": "Atualiza as preferências de alertas do usuário. Permite configurar tipos de crime, horários e dias ativos.",
+                "operationId": "updateAlertPreferences",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "alerts_enabled": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "enabled_crime_types": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2,
+                                            3
+                                        ]
+                                    },
+                                    "active_hours_start": {
+                                        "type": "string",
+                                        "format": "time",
+                                        "example": "18:00"
+                                    },
+                                    "active_hours_end": {
+                                        "type": "string",
+                                        "format": "time",
+                                        "example": "06:00"
+                                    },
+                                    "active_days": {
+                                        "description": "0=Domingo, 6=Sábado",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer",
+                                            "maximum": 6,
+                                            "minimum": 0
+                                        },
+                                        "example": [
+                                            0,
+                                            1,
+                                            2,
+                                            3,
+                                            4,
+                                            5,
+                                            6
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Preferências atualizadas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/AlertPreference"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Preferências atualizadas com sucesso"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analytics/dashboard": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Dashboard analítico",
+                "description": "Retorna dados completos do dashboard com indicadores de gestão. Dados atualizados com delay máximo de 15 minutos.",
+                "operationId": "getDashboard",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "region_id",
+                        "in": "query",
+                        "description": "Filtrar por região",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados do dashboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/DashboardData"
+                                        },
+                                        "filters": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão de administrador",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analytics/summary": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Métricas resumidas",
+                "description": "Retorna apenas as métricas resumidas do sistema",
+                "operationId": "getSummary",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Métricas resumidas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "total_occurrences": {
+                                                    "type": "integer"
+                                                },
+                                                "active_occurrences": {
+                                                    "type": "integer"
+                                                },
+                                                "pending_moderation": {
+                                                    "type": "integer"
+                                                },
+                                                "total_users": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analytics/distribution/type": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Distribuição por tipo de crime",
+                "description": "Retorna distribuição de ocorrências por tipo de crime",
+                "operationId": "getDistributionByType",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "region_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Distribuição por tipo",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CrimeDistribution"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analytics/distribution/region": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Distribuição por região",
+                "description": "Retorna distribuição de ocorrências por região",
+                "operationId": "getDistributionByRegion",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "crime_type_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Distribuição por região",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/RegionHeatmap"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analytics/trends": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Tendências temporais",
+                "description": "Retorna análise de tendências temporais de ocorrências",
+                "operationId": "getTrends",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados de tendências",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TimeSeriesPoint"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analytics/quality": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Métricas de qualidade de dados",
+                "description": "Retorna métricas de qualidade dos dados do sistema",
+                "operationId": "getQuality",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Métricas de qualidade",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "completeness": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "accuracy": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "timeliness": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "consistency": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analytics/moderation": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Estatísticas de moderação",
+                "description": "Retorna estatísticas do sistema de moderação",
+                "operationId": "getModerationStats",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Estatísticas de moderação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "pending": {
+                                                    "type": "integer"
+                                                },
+                                                "approved": {
+                                                    "type": "integer"
+                                                },
+                                                "rejected": {
+                                                    "type": "integer"
+                                                },
+                                                "avg_response_time": {
+                                                    "type": "number"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analytics/export": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Exportar dados analíticos",
+                "description": "Exporta dados analíticos em formato CSV, PDF ou JSON",
+                "operationId": "exportAnalytics",
+                "parameters": [
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "Formato de exportação",
+                        "schema": {
+                            "type": "string",
+                            "default": "csv",
+                            "enum": [
+                                "csv",
+                                "pdf",
+                                "json"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Tipo de dados a exportar",
+                        "schema": {
+                            "type": "string",
+                            "default": "occurrences",
+                            "enum": [
+                                "occurrences",
+                                "summary",
+                                "distribution"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Arquivo exportado",
+                        "content": {
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "403": {
+                        "description": "Sem permissão"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Registrar novo usuário",
+                "description": "Cria uma nova conta de usuário e retorna um token de autenticação",
+                "operationId": "register",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "example": "João Silva"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "maxLength": 255,
+                                        "example": "joao@email.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "minLength": 8,
+                                        "example": "senha123"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "senha123"
+                                    },
+                                    "locale": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pt_BR",
+                                            "en",
+                                            "es"
+                                        ],
+                                        "example": "pt_BR"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Usuário registrado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/User"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abc123xyz..."
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Registro realizado com sucesso"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Autenticar usuário",
+                "description": "Autentica um usuário e retorna um token de acesso. Conta é bloqueada após 5 tentativas falhas.",
+                "operationId": "login",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "joao@email.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "senha123"
+                                    },
+                                    "revoke_existing": {
+                                        "description": "Revogar tokens existentes",
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login realizado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/User"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abc123xyz..."
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Login realizado com sucesso"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais inválidas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "invalid_credentials"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Credenciais inválidas"
+                                        },
+                                        "attempts_remaining": {
+                                            "type": "integer",
+                                            "example": 4
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "423": {
+                        "description": "Conta bloqueada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "account_locked"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Conta bloqueada por 15 minutos"
+                                        },
+                                        "locked_until": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        },
+                                        "remaining_seconds": {
+                                            "type": "integer",
+                                            "example": 900
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Encerrar sessão",
+                "description": "Revoga o token de acesso atual do usuário",
+                "operationId": "logout",
+                "responses": {
+                    "200": {
+                        "description": "Logout realizado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Logout realizado com sucesso"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Obter usuário atual",
+                "description": "Retorna os dados do usuário autenticado",
+                "operationId": "me",
+                "responses": {
+                    "200": {
+                        "description": "Dados do usuário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/User"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/geocode": {
+            "get": {
+                "tags": [
+                    "Geocoding"
+                ],
+                "summary": "Geocodificar endereço",
+                "description": "Converte um endereço em coordenadas geográficas. Retorna até 5 resultados em até 2 segundos.",
+                "operationId": "geocode",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "description": "Endereço a ser geocodificado (mínimo 3 caracteres)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 255,
+                            "minLength": 3,
+                            "example": "Av. Paulista, São Paulo"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resultados da geocodificação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Address"
+                                            }
+                                        },
+                                        "count": {
+                                            "type": "integer",
+                                            "example": 3
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Serviço de geocodificação indisponível",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/reverse-geocode": {
+            "get": {
+                "tags": [
+                    "Geocoding"
+                ],
+                "summary": "Geocodificação reversa",
+                "description": "Converte coordenadas geográficas em um endereço",
+                "operationId": "reverseGeocode",
+                "parameters": [
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "description": "Latitude",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "maximum": 90,
+                            "minimum": -90,
+                            "example": -23.5505
+                        }
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "description": "Longitude",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "maximum": 180,
+                            "minimum": -180,
+                            "example": -46.6333
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Endereço encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Address"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Serviço de geocodificação indisponível",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/heatmap": {
+            "get": {
+                "tags": [
+                    "Heatmap"
+                ],
+                "summary": "Obter dados do mapa de calor",
+                "description": "Retorna dados de concentração de ocorrências para renderização de mapa de calor. Granularidade ajusta automaticamente com o zoom.",
+                "operationId": "getHeatmap",
+                "parameters": [
+                    {
+                        "name": "min_lat",
+                        "in": "query",
+                        "description": "Latitude mínima do bounding box",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "example": -23.6
+                        }
+                    },
+                    {
+                        "name": "min_lng",
+                        "in": "query",
+                        "description": "Longitude mínima do bounding box",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "example": -46.7
+                        }
+                    },
+                    {
+                        "name": "max_lat",
+                        "in": "query",
+                        "description": "Latitude máxima do bounding box",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "example": -23.5
+                        }
+                    },
+                    {
+                        "name": "max_lng",
+                        "in": "query",
+                        "description": "Longitude máxima do bounding box",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "example": -46.6
+                        }
+                    },
+                    {
+                        "name": "zoom",
+                        "in": "query",
+                        "description": "Nível de zoom do mapa (1-18)",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 18,
+                            "minimum": 1,
+                            "example": 12
+                        }
+                    },
+                    {
+                        "name": "crime_type_id",
+                        "in": "query",
+                        "description": "Filtrar por tipo de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "crime_category_id",
+                        "in": "query",
+                        "description": "Filtrar por categoria de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 365,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados do mapa de calor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/HeatmapPoint"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/heatmap/regions": {
+            "get": {
+                "tags": [
+                    "Heatmap"
+                ],
+                "summary": "Mapa de calor por região",
+                "description": "Retorna dados de ocorrências agregados por região administrativa",
+                "operationId": "getHeatmapByRegion",
+                "parameters": [
+                    {
+                        "name": "crime_type_id",
+                        "in": "query",
+                        "description": "Filtrar por tipo de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "crime_category_id",
+                        "in": "query",
+                        "description": "Filtrar por categoria de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 365,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados agregados por região",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/RegionHeatmap"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/heatmap/distribution": {
+            "get": {
+                "tags": [
+                    "Heatmap"
+                ],
+                "summary": "Distribuição por tipo de crime",
+                "description": "Retorna a distribuição de ocorrências por tipo de crime",
+                "operationId": "getDistribution",
+                "parameters": [
+                    {
+                        "name": "min_lat",
+                        "in": "query",
+                        "description": "Latitude mínima do bounding box",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "min_lng",
+                        "in": "query",
+                        "description": "Longitude mínima do bounding box",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "max_lat",
+                        "in": "query",
+                        "description": "Latitude máxima do bounding box",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "max_lng",
+                        "in": "query",
+                        "description": "Longitude máxima do bounding box",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 365,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Distribuição por tipo de crime",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CrimeDistribution"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/occurrences": {
+            "get": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Listar ocorrências",
+                "description": "Retorna lista paginada de ocorrências com filtros opcionais",
+                "operationId": "listOccurrences",
+                "parameters": [
+                    {
+                        "name": "region_id",
+                        "in": "query",
+                        "description": "Filtrar por região",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "crime_type_id",
+                        "in": "query",
+                        "description": "Filtrar por tipo de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "severity",
+                        "in": "query",
+                        "description": "Filtrar por severidade",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "low",
+                                "medium",
+                                "high",
+                                "critical"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 365,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "description": "Latitude para busca por proximidade",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "description": "Longitude para busca por proximidade",
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "radius",
+                        "in": "query",
+                        "description": "Raio de busca em metros (padrão: 1000)",
+                        "schema": {
+                            "type": "number",
+                            "maximum": 50000,
+                            "minimum": 100
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Itens por página (padrão: 15)",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de ocorrências",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Occurrence"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Criar ocorrência",
+                "description": "Registra uma nova ocorrência criminal. Coordenadas devem estar a até 100m da localização do usuário. Limite de 5 reportes por hora por usuário.",
+                "operationId": "createOccurrence",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "latitude",
+                                    "longitude",
+                                    "crime_type_id",
+                                    "severity",
+                                    "user_location"
+                                ],
+                                "properties": {
+                                    "latitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": -23.5505
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": -46.6333
+                                    },
+                                    "crime_type_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "severity": {
+                                        "type": "string",
+                                        "enum": [
+                                            "low",
+                                            "medium",
+                                            "high",
+                                            "critical"
+                                        ],
+                                        "example": "medium"
+                                    },
+                                    "timestamp": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2025-01-05T10:30:00Z"
+                                    },
+                                    "user_location": {
+                                        "required": [
+                                            "latitude",
+                                            "longitude"
+                                        ],
+                                        "properties": {
+                                            "latitude": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": -23.5506
+                                            },
+                                            "longitude": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": -46.6334
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "metadata": {
+                                        "properties": {
+                                            "description": {
+                                                "type": "string",
+                                                "maxLength": 500,
+                                                "example": "Assalto a mão armada"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Ocorrência criada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Occurrence"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Ocorrência registrada com sucesso"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação ou localização inválida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Limite de reportes excedido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "rate_limit_exceeded"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Limite de 5 reportes por hora excedido"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/occurrences/{id}": {
+            "get": {
+                "tags": [
+                    "Occurrences"
+                ],
+                "summary": "Obter ocorrência",
+                "description": "Retorna os detalhes de uma ocorrência específica",
+                "operationId": "getOccurrence",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da ocorrência",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalhes da ocorrência",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Occurrence"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ocorrência não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/routes": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Calcular rota",
+                "description": "Calcula uma rota entre origem e destino com análise de risco. Pode opcionalmente iniciar uma sessão de navegação.",
+                "operationId": "calculateRoute",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "origin",
+                                    "destination"
+                                ],
+                                "properties": {
+                                    "origin": {
+                                        "required": [
+                                            "latitude",
+                                            "longitude"
+                                        ],
+                                        "properties": {
+                                            "latitude": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": -23.5505
+                                            },
+                                            "longitude": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": -46.6333
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "destination": {
+                                        "required": [
+                                            "latitude",
+                                            "longitude"
+                                        ],
+                                        "properties": {
+                                            "latitude": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": -23.5629
+                                            },
+                                            "longitude": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": -46.6544
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "prefer_safe_route": {
+                                        "description": "Preferir rota mais segura",
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "start_navigation": {
+                                        "description": "Iniciar sessão de navegação",
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Rota calculada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/RouteWithRisk"
+                                        },
+                                        "occurrences": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Occurrence"
+                                            }
+                                        },
+                                        "session_id": {
+                                            "type": "integer",
+                                            "example": 123,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Serviço de mapas indisponível",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/routes/recalculate": {
+            "post": {
+                "tags": [
+                    "Routes"
+                ],
+                "summary": "Recalcular rota",
+                "description": "Recalcula a rota durante navegação ativa. Acionado quando tempo de viagem aumenta >10% ou usuário sai da rota.",
+                "operationId": "recalculateRoute",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "session_id",
+                                    "current_position"
+                                ],
+                                "properties": {
+                                    "session_id": {
+                                        "description": "ID da sessão de navegação ativa",
+                                        "type": "integer",
+                                        "example": 123
+                                    },
+                                    "current_position": {
+                                        "required": [
+                                            "latitude",
+                                            "longitude"
+                                        ],
+                                        "properties": {
+                                            "latitude": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": -23.555
+                                            },
+                                            "longitude": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "example": -46.64
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Rota recalculada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/RouteRecalculation"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação ou sessão não encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/timeseries": {
+            "get": {
+                "tags": [
+                    "TimeSeries"
+                ],
+                "summary": "Série temporal de ocorrências",
+                "description": "Retorna dados de série temporal para visualização em gráfico de linha",
+                "operationId": "getTimeSeries",
+                "parameters": [
+                    {
+                        "name": "region_id",
+                        "in": "query",
+                        "description": "Filtrar por região",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "region_ids",
+                        "in": "query",
+                        "description": "Filtrar por múltiplas regiões",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    {
+                        "name": "crime_type_id",
+                        "in": "query",
+                        "description": "Filtrar por tipo de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "crime_category_id",
+                        "in": "query",
+                        "description": "Filtrar por categoria de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 365,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "granularity",
+                        "in": "query",
+                        "description": "Granularidade temporal",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "hour",
+                                "day",
+                                "week",
+                                "month"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dados da série temporal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TimeSeriesPoint"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/timeseries/hourly": {
+            "get": {
+                "tags": [
+                    "TimeSeries"
+                ],
+                "summary": "Padrão por hora do dia",
+                "description": "Retorna análise de concentração de ocorrências por hora do dia",
+                "operationId": "getHourlyPattern",
+                "parameters": [
+                    {
+                        "name": "region_id",
+                        "in": "query",
+                        "description": "Filtrar por região",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "crime_type_id",
+                        "in": "query",
+                        "description": "Filtrar por tipo de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 365,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Padrão horário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "hour": {
+                                                        "type": "integer",
+                                                        "example": 14
+                                                    },
+                                                    "count": {
+                                                        "type": "integer",
+                                                        "example": 45
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/timeseries/daily": {
+            "get": {
+                "tags": [
+                    "TimeSeries"
+                ],
+                "summary": "Padrão por dia da semana",
+                "description": "Retorna análise de concentração de ocorrências por dia da semana",
+                "operationId": "getDayOfWeekPattern",
+                "parameters": [
+                    {
+                        "name": "region_id",
+                        "in": "query",
+                        "description": "Filtrar por região",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "crime_type_id",
+                        "in": "query",
+                        "description": "Filtrar por tipo de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 365,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Padrão por dia da semana",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "day": {
+                                                        "description": "0=Domingo, 6=Sábado",
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "day_name": {
+                                                        "type": "string",
+                                                        "example": "Segunda"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer",
+                                                        "example": 120
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/timeseries/heatmap": {
+            "get": {
+                "tags": [
+                    "TimeSeries"
+                ],
+                "summary": "Mapa de calor hora x dia",
+                "description": "Retorna matriz de concentração combinando hora do dia e dia da semana",
+                "operationId": "getHourDayHeatmap",
+                "parameters": [
+                    {
+                        "name": "region_id",
+                        "in": "query",
+                        "description": "Filtrar por região",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "crime_type_id",
+                        "in": "query",
+                        "description": "Filtrar por tipo de crime",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "Últimos N dias",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 365,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Matriz hora x dia",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "hour": {
+                                                        "type": "integer",
+                                                        "example": 14
+                                                    },
+                                                    "day": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "count": {
+                                                        "type": "integer",
+                                                        "example": 25
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "User": {
+                "properties": {
+                    "id": {
+                        "description": "Swagger Schema Definitions",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "João Silva"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "joao@email.com"
+                    },
+                    "locale": {
+                        "type": "string",
+                        "example": "pt_BR"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "user",
+                            "moderator",
+                            "admin"
+                        ],
+                        "example": "user"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Occurrence": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": -23.5505
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": -46.6333
+                    },
+                    "crime_type_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "crime_type": {
+                        "type": "string",
+                        "example": "Assalto"
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": [
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ],
+                        "example": "medium"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "expired",
+                            "rejected",
+                            "merged"
+                        ],
+                        "example": "active"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "collaborative",
+                            "official"
+                        ],
+                        "example": "collaborative"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "confidence_score": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "region_id": {
+                        "type": "integer",
+                        "example": 5,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "RouteWithRisk": {
+                "properties": {
+                    "route": {
+                        "properties": {
+                            "distance": {
+                                "description": "Distância em metros",
+                                "type": "number",
+                                "example": 2500
+                            },
+                            "duration": {
+                                "description": "Duração em segundos",
+                                "type": "number",
+                                "example": 1800
+                            },
+                            "polyline": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Coordinates"
+                                }
+                            },
+                            "instructions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "risk_analysis": {
+                        "properties": {
+                            "overall_risk": {
+                                "type": "string",
+                                "enum": [
+                                    "low",
+                                    "medium",
+                                    "high",
+                                    "critical"
+                                ],
+                                "example": "medium"
+                            },
+                            "risk_score": {
+                                "type": "number",
+                                "format": "float",
+                                "example": 0.45
+                            },
+                            "risk_segments": {
+                                "type": "array",
+                                "items": {
+                                    "properties": {
+                                        "start_index": {
+                                            "type": "integer"
+                                        },
+                                        "end_index": {
+                                            "type": "integer"
+                                        },
+                                        "risk_level": {
+                                            "type": "string"
+                                        },
+                                        "risk_score": {
+                                            "type": "number"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "risk_factors": {
+                                "type": "array",
+                                "items": {
+                                    "properties": {
+                                        "type": {
+                                            "type": "string"
+                                        },
+                                        "description": {
+                                            "type": "string"
+                                        },
+                                        "weight": {
+                                            "type": "number"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "is_safe_route": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "RouteRecalculation": {
+                "properties": {
+                    "recalculated": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "example": "travel_time_increased"
+                    },
+                    "new_route": {
+                        "$ref": "#/components/schemas/RouteWithRisk"
+                    },
+                    "risk_changed": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "previous_risk": {
+                        "type": "string",
+                        "example": "medium"
+                    },
+                    "new_risk": {
+                        "type": "string",
+                        "example": "medium"
+                    }
+                },
+                "type": "object"
+            },
+            "Address": {
+                "properties": {
+                    "formatted_address": {
+                        "type": "string",
+                        "example": "Av. Paulista, 1000 - Bela Vista, São Paulo - SP"
+                    },
+                    "street": {
+                        "type": "string",
+                        "example": "Av. Paulista"
+                    },
+                    "number": {
+                        "type": "string",
+                        "example": "1000"
+                    },
+                    "neighborhood": {
+                        "type": "string",
+                        "example": "Bela Vista"
+                    },
+                    "city": {
+                        "type": "string",
+                        "example": "São Paulo"
+                    },
+                    "state": {
+                        "type": "string",
+                        "example": "SP"
+                    },
+                    "country": {
+                        "type": "string",
+                        "example": "Brasil"
+                    },
+                    "postal_code": {
+                        "type": "string",
+                        "example": "01310-100"
+                    },
+                    "coordinates": {
+                        "properties": {
+                            "latitude": {
+                                "type": "number",
+                                "format": "float",
+                                "example": -23.5505
+                            },
+                            "longitude": {
+                                "type": "number",
+                                "format": "float",
+                                "example": -46.6333
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "Alert": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "example": "high_risk_region"
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": [
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ],
+                        "example": "high"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Você está entrando em uma região de alto risco"
+                    },
+                    "region_name": {
+                        "type": "string",
+                        "example": "Centro"
+                    },
+                    "distance": {
+                        "description": "Distância em metros",
+                        "type": "number",
+                        "example": 150
+                    },
+                    "location": {
+                        "properties": {
+                            "latitude": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "longitude": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "AlertPreference": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "user_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "alerts_enabled": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "enabled_crime_types": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            1,
+                            2,
+                            3
+                        ]
+                    },
+                    "active_hours_start": {
+                        "type": "string",
+                        "format": "time",
+                        "example": "18:00",
+                        "nullable": true
+                    },
+                    "active_hours_end": {
+                        "type": "string",
+                        "format": "time",
+                        "example": "06:00",
+                        "nullable": true
+                    },
+                    "active_days": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "HeatmapPoint": {
+                "properties": {
+                    "latitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": -23.5505
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "float",
+                        "example": -46.6333
+                    },
+                    "weight": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 0.75
+                    },
+                    "count": {
+                        "type": "integer",
+                        "example": 15
+                    }
+                },
+                "type": "object"
+            },
+            "RegionHeatmap": {
+                "properties": {
+                    "region_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "region_name": {
+                        "type": "string",
+                        "example": "Centro"
+                    },
+                    "occurrence_count": {
+                        "type": "integer",
+                        "example": 150
+                    },
+                    "risk_index": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 0.72
+                    },
+                    "centroid": {
+                        "properties": {
+                            "latitude": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "longitude": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "CrimeDistribution": {
+                "properties": {
+                    "crime_type_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "crime_type_name": {
+                        "type": "string",
+                        "example": "Assalto"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "example": 250
+                    },
+                    "percentage": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 35.5
+                    }
+                },
+                "type": "object"
+            },
+            "TimeSeriesPoint": {
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "example": "2025-01-05"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "example": 45
+                    },
+                    "cumulative": {
+                        "type": "integer",
+                        "example": 1250
+                    }
+                },
+                "type": "object"
+            },
+            "ModerationItem": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "occurrence_id": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "approved",
+                            "rejected"
+                        ],
+                        "example": "pending"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "moderator_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "moderated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "occurrence": {
+                        "$ref": "#/components/schemas/Occurrence"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "CrimeCategory": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Crimes contra o patrimônio"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "crimes-patrimonio"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "parent_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "version": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CrimeCategory"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Translation": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "key": {
+                        "type": "string",
+                        "example": "messages.welcome"
+                    },
+                    "locale": {
+                        "type": "string",
+                        "example": "pt_BR"
+                    },
+                    "value": {
+                        "type": "string",
+                        "example": "Bem-vindo ao Walking Safely"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "DashboardData": {
+                "properties": {
+                    "summary": {
+                        "properties": {
+                            "total_occurrences": {
+                                "type": "integer",
+                                "example": 1500
+                            },
+                            "active_occurrences": {
+                                "type": "integer",
+                                "example": 1200
+                            },
+                            "pending_moderation": {
+                                "type": "integer",
+                                "example": 25
+                            },
+                            "total_users": {
+                                "type": "integer",
+                                "example": 5000
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "trends": {
+                        "properties": {
+                            "occurrences_change": {
+                                "type": "number",
+                                "format": "float",
+                                "example": 12.5
+                            },
+                            "users_change": {
+                                "type": "number",
+                                "format": "float",
+                                "example": 8.3
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "distribution_by_type": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CrimeDistribution"
+                        }
+                    },
+                    "distribution_by_region": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RegionHeatmap"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "Coordinates": {
+                "required": [
+                    "latitude",
+                    "longitude"
+                ],
+                "properties": {
+                    "latitude": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 90,
+                        "minimum": -90,
+                        "example": -23.5505
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 180,
+                        "minimum": -180,
+                        "example": -46.6333
+                    }
+                },
+                "type": "object"
+            },
+            "OccurrenceSeverity": {
+                "description": "Nível de severidade da ocorrência",
+                "type": "string",
+                "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    "critical"
+                ]
+            },
+            "OccurrenceStatus": {
+                "description": "Status da ocorrência",
+                "type": "string",
+                "enum": [
+                    "active",
+                    "expired",
+                    "rejected",
+                    "merged"
+                ]
+            },
+            "OccurrenceSource": {
+                "description": "Fonte da ocorrência",
+                "type": "string",
+                "enum": [
+                    "collaborative",
+                    "official"
+                ]
+            },
+            "UserRole": {
+                "description": "Papel do usuário no sistema",
+                "type": "string",
+                "enum": [
+                    "user",
+                    "moderator",
+                    "admin"
+                ]
+            },
+            "Error": {
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "example": "validation_error"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Os dados fornecidos são inválidos"
+                    }
+                },
+                "type": "object"
+            },
+            "ValidationError": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Os dados fornecidos são inválidos"
+                    },
+                    "errors": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "PaginationMeta": {
+                "properties": {
+                    "current_page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "from": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "last_page": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "to": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "total": {
+                        "type": "integer",
+                        "example": 150
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Enter your Bearer token in the format: Bearer {token}"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Authentication",
+            "description": "Endpoints de autenticação de usuários"
+        },
+        {
+            "name": "Routes",
+            "description": "Cálculo e recálculo de rotas com análise de risco"
+        },
+        {
+            "name": "Occurrences",
+            "description": "Gerenciamento de ocorrências criminais"
+        },
+        {
+            "name": "Geocoding",
+            "description": "Geocodificação e geocodificação reversa"
+        },
+        {
+            "name": "Alerts",
+            "description": "Sistema de alertas e preferências"
+        },
+        {
+            "name": "Heatmap",
+            "description": "Visualização de mapa de calor de ocorrências"
+        },
+        {
+            "name": "TimeSeries",
+            "description": "Análise temporal de ocorrências"
+        },
+        {
+            "name": "Analytics",
+            "description": "Dashboard e métricas analíticas (Admin)"
+        },
+        {
+            "name": "Admin",
+            "description": "Operações administrativas"
+        }
+    ]
+}

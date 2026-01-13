@@ -1,0 +1,6 @@
+# Features directory
+# Each feature module will have its own folder with:
+# - data/ (API, repositories)
+# - domain/ (entities, use cases, validators)
+# - presentation/ (screens, components)
+# - store/ (Zustand store)

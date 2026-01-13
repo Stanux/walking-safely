@@ -45,7 +45,7 @@ return [
     |
     */
 
-    'map_provider' => 'nominatim', // Forçado para nominatim
+    'map_provider' => env('MAP_PROVIDER', 'nominatim'),
 
     'map_fallback_order' => ['nominatim', 'google', 'here', 'mapbox'],
 

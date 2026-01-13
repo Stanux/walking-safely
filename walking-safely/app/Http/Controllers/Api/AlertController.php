@@ -26,7 +26,67 @@ class AlertController extends Controller
     /**
      * Check alert conditions for current position.
      *
-     * GET /api/alerts/check
+     * @OA\Get(
+     *     path="/alerts/check",
+     *     operationId="checkAlerts",
+     *     tags={"Alerts"},
+     *     summary="Verificar alertas",
+     *     description="Verifica condições de alerta para a posição atual. Distância de alerta varia com a velocidade.",
+     *     @OA\Parameter(
+     *         name="latitude",
+     *         in="query",
+     *         required=true,
+     *         description="Latitude atual",
+     *         @OA\Schema(type="number", format="float", example=-23.5505)
+     *     ),
+     *     @OA\Parameter(
+     *         name="longitude",
+     *         in="query",
+     *         required=true,
+     *         description="Longitude atual",
+     *         @OA\Schema(type="number", format="float", example=-46.6333)
+     *     ),
+     *     @OA\Parameter(
+     *         name="speed",
+     *         in="query",
+     *         description="Velocidade atual em km/h",
+     *         @OA\Schema(type="number", minimum=0, maximum=300, example=5)
+     *     ),
+     *     @OA\Parameter(
+     *         name="upcoming_waypoints",
+     *         in="query",
+     *         description="Próximos waypoints da rota (JSON array)",
+     *         @OA\Schema(
+     *             type="array",
+     *             @OA\Items(
+     *                 type="object",
+     *                 @OA\Property(property="latitude", type="number"),
+     *                 @OA\Property(property="longitude", type="number")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Resultado da verificação de alertas",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(
+     *                     property="alerts",
+     *                     type="array",
+     *                     @OA\Items(ref="#/components/schemas/Alert")
+     *                 ),
+     *                 @OA\Property(property="alert_distance", type="number", example=100)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
      *
      * @see Requirement 6.1 - Alert when entering high risk region
      * @see Requirement 6.4 - Alert distance based on speed
@@ -83,7 +143,26 @@ class AlertController extends Controller
     /**
      * Get user's alert preferences.
      *
-     * GET /api/alerts/preferences
+     * @OA\Get(
+     *     path="/alerts/preferences",
+     *     operationId="getAlertPreferences",
+     *     tags={"Alerts"},
+     *     summary="Obter preferências de alertas",
+     *     description="Retorna as preferências de alertas do usuário autenticado",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Preferências de alertas",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/AlertPreference")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      */
     public function getPreferences(Request $request): JsonResponse
     {
@@ -111,7 +190,53 @@ class AlertController extends Controller
     /**
      * Update user's alert preferences.
      *
-     * PUT /api/alerts/preferences
+     * @OA\Put(
+     *     path="/alerts/preferences",
+     *     operationId="updateAlertPreferences",
+     *     tags={"Alerts"},
+     *     summary="Atualizar preferências de alertas",
+     *     description="Atualiza as preferências de alertas do usuário. Permite configurar tipos de crime, horários e dias ativos.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="alerts_enabled", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="enabled_crime_types",
+     *                 type="array",
+     *                 @OA\Items(type="integer"),
+     *                 example={1, 2, 3}
+     *             ),
+     *             @OA\Property(property="active_hours_start", type="string", format="time", example="18:00"),
+     *             @OA\Property(property="active_hours_end", type="string", format="time", example="06:00"),
+     *             @OA\Property(
+     *                 property="active_days",
+     *                 type="array",
+     *                 @OA\Items(type="integer", minimum=0, maximum=6),
+     *                 example={0, 1, 2, 3, 4, 5, 6},
+     *                 description="0=Domingo, 6=Sábado"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Preferências atualizadas",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/AlertPreference"),
+     *             @OA\Property(property="message", type="string", example="Preferências atualizadas com sucesso")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
      *
      * @see Requirement 6.3 - Enable/disable alerts by occurrence type
      * @see Requirement 6.5 - Define specific hours for alert activation

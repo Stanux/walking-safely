@@ -41,7 +41,36 @@ class AdminController extends Controller
     /**
      * Get pending moderation items.
      *
-     * GET /api/admin/moderation
+     * @OA\Get(
+     *     path="/admin/moderation",
+     *     operationId="getModerationQueue",
+     *     tags={"Admin"},
+     *     summary="Fila de moderação",
+     *     description="Retorna itens pendentes de moderação",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="limit",
+     *         in="query",
+     *         description="Limite de itens (padrão: 50)",
+     *         @OA\Schema(type="integer", default=50)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Fila de moderação",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/ModerationItem")),
+     *             @OA\Property(
+     *                 property="statistics",
+     *                 type="object",
+     *                 @OA\Property(property="pending", type="integer"),
+     *                 @OA\Property(property="approved_today", type="integer"),
+     *                 @OA\Property(property="rejected_today", type="integer")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão de administrador")
+     * )
      *
      * @see Requirement 14.1 - Moderation queue
      */
@@ -61,7 +90,37 @@ class AdminController extends Controller
     /**
      * Approve a moderation item.
      *
-     * POST /api/admin/moderation/{id}/approve
+     * @OA\Post(
+     *     path="/admin/moderation/{id}/approve",
+     *     operationId="approveModeration",
+     *     tags={"Admin"},
+     *     summary="Aprovar item de moderação",
+     *     description="Aprova um item pendente de moderação",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID do item de moderação",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="notes", type="string", nullable=true, example="Aprovado após verificação")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Item aprovado",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/ModerationItem"),
+     *             @OA\Property(property="message", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão"),
+     *     @OA\Response(response=404, description="Item não encontrado")
+     * )
      *
      * @see Requirement 14.2 - Record moderation decision with timestamp and moderator
      */
@@ -100,7 +159,37 @@ class AdminController extends Controller
     /**
      * Reject a moderation item.
      *
-     * POST /api/admin/moderation/{id}/reject
+     * @OA\Post(
+     *     path="/admin/moderation/{id}/reject",
+     *     operationId="rejectModeration",
+     *     tags={"Admin"},
+     *     summary="Rejeitar item de moderação",
+     *     description="Rejeita um item pendente de moderação",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID do item de moderação",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="notes", type="string", nullable=true, example="Informações insuficientes")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Item rejeitado",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/ModerationItem"),
+     *             @OA\Property(property="message", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão"),
+     *     @OA\Response(response=404, description="Item não encontrado")
+     * )
      *
      * @see Requirement 14.2 - Record moderation decision with timestamp and moderator
      */
@@ -145,7 +234,23 @@ class AdminController extends Controller
     /**
      * Get all crime categories.
      *
-     * GET /api/admin/taxonomy/categories
+     * @OA\Get(
+     *     path="/admin/taxonomy/categories",
+     *     operationId="getCategories",
+     *     tags={"Admin"},
+     *     summary="Listar categorias de crime",
+     *     description="Retorna todas as categorias de crime com hierarquia",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de categorias",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/CrimeCategory"))
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      */
     public function getCategories(Request $request): JsonResponse
     {
@@ -163,7 +268,41 @@ class AdminController extends Controller
     /**
      * Update a crime category.
      *
-     * PUT /api/admin/taxonomy/categories/{id}
+     * @OA\Put(
+     *     path="/admin/taxonomy/categories/{id}",
+     *     operationId="updateCategory",
+     *     tags={"Admin"},
+     *     summary="Atualizar categoria de crime",
+     *     description="Atualiza uma categoria de crime. Cria versão antes de atualizar.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID da categoria",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="name", type="string", example="Crimes contra o patrimônio"),
+     *             @OA\Property(property="slug", type="string", example="crimes-patrimonio"),
+     *             @OA\Property(property="description", type="string", nullable=true),
+     *             @OA\Property(property="parent_id", type="integer", nullable=true)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Categoria atualizada",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/CrimeCategory"),
+     *             @OA\Property(property="message", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão"),
+     *     @OA\Response(response=404, description="Categoria não encontrada")
+     * )
      *
      * @see Requirement 13.2 - Version taxonomy changes and maintain history
      */
@@ -203,7 +342,35 @@ class AdminController extends Controller
     /**
      * Create a new crime category.
      *
-     * POST /api/admin/taxonomy/categories
+     * @OA\Post(
+     *     path="/admin/taxonomy/categories",
+     *     operationId="createCategory",
+     *     tags={"Admin"},
+     *     summary="Criar categoria de crime",
+     *     description="Cria uma nova categoria de crime",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name", "slug"},
+     *             @OA\Property(property="name", type="string", example="Nova categoria"),
+     *             @OA\Property(property="slug", type="string", example="nova-categoria"),
+     *             @OA\Property(property="description", type="string", nullable=true),
+     *             @OA\Property(property="parent_id", type="integer", nullable=true)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Categoria criada",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/CrimeCategory"),
+     *             @OA\Property(property="message", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão"),
+     *     @OA\Response(response=422, description="Erro de validação")
+     * )
      */
     public function createCategory(UpdateCrimeCategoryRequest $request): JsonResponse
     {
@@ -239,7 +406,31 @@ class AdminController extends Controller
     /**
      * Get all translations for a locale.
      *
-     * GET /api/admin/translations
+     * @OA\Get(
+     *     path="/admin/translations",
+     *     operationId="getTranslations",
+     *     tags={"Admin"},
+     *     summary="Listar traduções",
+     *     description="Retorna todas as traduções para um locale específico",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="locale",
+     *         in="query",
+     *         description="Código do locale",
+     *         @OA\Schema(type="string", enum={"pt_BR", "en", "es"}, default="pt_BR")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de traduções",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Translation")),
+     *             @OA\Property(property="locale", type="string"),
+     *             @OA\Property(property="supported_locales", type="array", @OA\Items(type="string"))
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      *
      * @see Requirement 22.3 - Administrative interface for translations
      */
@@ -260,7 +451,34 @@ class AdminController extends Controller
     /**
      * Update or create a translation.
      *
-     * PUT /api/admin/translations
+     * @OA\Put(
+     *     path="/admin/translations",
+     *     operationId="updateTranslation",
+     *     tags={"Admin"},
+     *     summary="Atualizar tradução",
+     *     description="Atualiza ou cria uma tradução. Mantém histórico de versões.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"key", "locale", "value"},
+     *             @OA\Property(property="key", type="string", example="messages.welcome"),
+     *             @OA\Property(property="locale", type="string", enum={"pt_BR", "en", "es"}, example="pt_BR"),
+     *             @OA\Property(property="value", type="string", example="Bem-vindo ao Walking Safely")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Tradução atualizada",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/Translation"),
+     *             @OA\Property(property="message", type="string")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão"),
+     *     @OA\Response(response=422, description="Erro de validação")
+     * )
      *
      * @see Requirement 22.4 - Version translation changes and maintain history
      */
@@ -300,7 +518,31 @@ class AdminController extends Controller
     /**
      * Export translations for a locale.
      *
-     * GET /api/admin/translations/export
+     * @OA\Get(
+     *     path="/admin/translations/export",
+     *     operationId="exportTranslations",
+     *     tags={"Admin"},
+     *     summary="Exportar traduções",
+     *     description="Exporta todas as traduções de um locale em formato JSON",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="locale",
+     *         in="query",
+     *         description="Código do locale",
+     *         @OA\Schema(type="string", enum={"pt_BR", "en", "es"}, default="pt_BR")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Traduções exportadas",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="object"),
+     *             @OA\Property(property="locale", type="string"),
+     *             @OA\Property(property="exported_at", type="string", format="date-time")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      *
      * @see Requirement 22.5 - Export translations in JSON format
      */
@@ -321,7 +563,37 @@ class AdminController extends Controller
     /**
      * Import translations for a locale.
      *
-     * POST /api/admin/translations/import
+     * @OA\Post(
+     *     path="/admin/translations/import",
+     *     operationId="importTranslations",
+     *     tags={"Admin"},
+     *     summary="Importar traduções",
+     *     description="Importa traduções de um arquivo JSON para um locale",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"locale", "translations"},
+     *             @OA\Property(property="locale", type="string", enum={"pt_BR", "en", "es"}, example="pt_BR"),
+     *             @OA\Property(
+     *                 property="translations",
+     *                 type="object",
+     *                 example={"messages.welcome": "Bem-vindo", "messages.goodbye": "Até logo"}
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Traduções importadas",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="count", type="integer", example=25)
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão"),
+     *     @OA\Response(response=422, description="Erro de validação")
+     * )
      *
      * @see Requirement 22.5 - Import translations in JSON format
      */

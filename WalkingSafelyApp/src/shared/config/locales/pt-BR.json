@@ -1,0 +1,70 @@
+{
+  "common": {
+    "yes": "Sim",
+    "no": "Não",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "save": "Salvar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "close": "Fechar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "loading": "Carregando...",
+    "error": "Erro",
+    "success": "Sucesso"
+  },
+  "navigation": {
+    "eta": "Tempo estimado",
+    "remaining": "Restante",
+    "speed": "Velocidade",
+    "risk": "Risco",
+    "distance": "Distância",
+    "duration": "Tempo",
+    "riskIndex": "Índice de Risco",
+    "endNavigation": "Encerrar Navegação",
+    "startNavigation": "Iniciar Navegação",
+    "showInstructions": "Ver Instruções",
+    "calculating": "Calculando...",
+    "recalculating": "Recalculando rota...",
+    "exitConfirmTitle": "Encerrar Navegação?",
+    "exitConfirmMessage": "Tem certeza que deseja encerrar a navegação atual?",
+    "arrived": "Você chegou ao seu destino!",
+    "routeDeviation": "Você saiu da rota",
+    "riskAlert": "Alerta de Risco",
+    "riskAlertAccessibility": "Alerta de risco: {{crimeType}} a {{distance}}",
+    "highRiskArea": "Área de alto risco próxima",
+    "instructions": "Instruções",
+    "closeInstructions": "Fechar",
+    "ahead": "à frente",
+    "tapToDismiss": "Toque para dispensar"
+  },
+  "route": {
+    "fastest": "Mais Rápida",
+    "safest": "Mais Segura",
+    "selectRoute": "Selecionar Rota",
+    "noRouteFound": "Nenhuma rota encontrada"
+  },
+  "occurrence": {
+    "report": "Reportar Ocorrência",
+    "type": "Tipo",
+    "severity": "Gravidade",
+    "description": "Descrição",
+    "submit": "Enviar",
+    "success": "Ocorrência reportada com sucesso",
+    "type.robbery": "Roubo",
+    "type.theft": "Furto",
+    "type.assault": "Agressão",
+    "type.harassment": "Assédio",
+    "type.vandalism": "Vandalismo",
+    "type.suspicious": "Atividade Suspeita",
+    "type.lowLighting": "Baixa Iluminação",
+    "type.obstructedPath": "Via Obstruída"
+  },
+  "severity": {
+    "low": "Baixo",
+    "medium": "Médio",
+    "high": "Alto",
+    "critical": "Crítico"
+  }
+}

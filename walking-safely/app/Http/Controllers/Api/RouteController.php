@@ -27,7 +27,58 @@ class RouteController extends Controller
     /**
      * Calculate a route between origin and destination.
      *
-     * POST /api/routes
+     * @OA\Post(
+     *     path="/routes",
+     *     operationId="calculateRoute",
+     *     tags={"Routes"},
+     *     summary="Calcular rota",
+     *     description="Calcula uma rota entre origem e destino com análise de risco. Pode opcionalmente iniciar uma sessão de navegação.",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"origin", "destination"},
+     *             @OA\Property(
+     *                 property="origin",
+     *                 type="object",
+     *                 required={"latitude", "longitude"},
+     *                 @OA\Property(property="latitude", type="number", format="float", example=-23.5505),
+     *                 @OA\Property(property="longitude", type="number", format="float", example=-46.6333)
+     *             ),
+     *             @OA\Property(
+     *                 property="destination",
+     *                 type="object",
+     *                 required={"latitude", "longitude"},
+     *                 @OA\Property(property="latitude", type="number", format="float", example=-23.5629),
+     *                 @OA\Property(property="longitude", type="number", format="float", example=-46.6544)
+     *             ),
+     *             @OA\Property(property="prefer_safe_route", type="boolean", example=true, description="Preferir rota mais segura"),
+     *             @OA\Property(property="start_navigation", type="boolean", example=false, description="Iniciar sessão de navegação")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Rota calculada com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/RouteWithRisk"),
+     *             @OA\Property(
+     *                 property="occurrences",
+     *                 type="array",
+     *                 @OA\Items(ref="#/components/schemas/Occurrence")
+     *             ),
+     *             @OA\Property(property="session_id", type="integer", nullable=true, example=123)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     ),
+     *     @OA\Response(
+     *         response=503,
+     *         description="Serviço de mapas indisponível",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      *
      * @see Requirement 2.1 - Calculate route and return trajectory, estimated time, and total distance
      * @see Requirement 2.4 - Analyze risk index of all regions in route
@@ -77,7 +128,39 @@ class RouteController extends Controller
     /**
      * Recalculate route during active navigation.
      *
-     * POST /api/routes/recalculate
+     * @OA\Post(
+     *     path="/routes/recalculate",
+     *     operationId="recalculateRoute",
+     *     tags={"Routes"},
+     *     summary="Recalcular rota",
+     *     description="Recalcula a rota durante navegação ativa. Acionado quando tempo de viagem aumenta >10% ou usuário sai da rota.",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"session_id", "current_position"},
+     *             @OA\Property(property="session_id", type="integer", example=123, description="ID da sessão de navegação ativa"),
+     *             @OA\Property(
+     *                 property="current_position",
+     *                 type="object",
+     *                 required={"latitude", "longitude"},
+     *                 @OA\Property(property="latitude", type="number", format="float", example=-23.5550),
+     *                 @OA\Property(property="longitude", type="number", format="float", example=-46.6400)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Rota recalculada com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/RouteRecalculation")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação ou sessão não encontrada",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
      *
      * @see Requirement 3.1 - Recalculate if travel time increases > 10%
      * @see Requirement 3.4 - Re-evaluate risk index for new route

@@ -25,7 +25,56 @@ class AnalyticsController extends Controller
     /**
      * Get dashboard data.
      *
-     * GET /api/analytics/dashboard
+     * @OA\Get(
+     *     path="/analytics/dashboard",
+     *     operationId="getDashboard",
+     *     tags={"Analytics"},
+     *     summary="Dashboard analítico",
+     *     description="Retorna dados completos do dashboard com indicadores de gestão. Dados atualizados com delay máximo de 15 minutos.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="start_date",
+     *         in="query",
+     *         description="Data inicial",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="end_date",
+     *         in="query",
+     *         description="Data final",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="days",
+     *         in="query",
+     *         description="Últimos N dias",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="region_id",
+     *         in="query",
+     *         description="Filtrar por região",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Dados do dashboard",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/DashboardData"),
+     *             @OA\Property(property="filters", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Sem permissão de administrador",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      *
      * @see Requirement 20.1 - Dashboard with management indicators
      * @see Requirement 20.2 - Data updated with maximum 15 minute delay
@@ -46,7 +95,33 @@ class AnalyticsController extends Controller
     /**
      * Get summary metrics only.
      *
-     * GET /api/analytics/summary
+     * @OA\Get(
+     *     path="/analytics/summary",
+     *     operationId="getSummary",
+     *     tags={"Analytics"},
+     *     summary="Métricas resumidas",
+     *     description="Retorna apenas as métricas resumidas do sistema",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="start_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="end_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="days", in="query", @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Métricas resumidas",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="total_occurrences", type="integer"),
+     *                 @OA\Property(property="active_occurrences", type="integer"),
+     *                 @OA\Property(property="pending_moderation", type="integer"),
+     *                 @OA\Property(property="total_users", type="integer")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      */
     public function summary(Request $request): JsonResponse
     {
@@ -64,7 +139,27 @@ class AnalyticsController extends Controller
     /**
      * Get distribution by crime type.
      *
-     * GET /api/analytics/distribution/type
+     * @OA\Get(
+     *     path="/analytics/distribution/type",
+     *     operationId="getDistributionByType",
+     *     tags={"Analytics"},
+     *     summary="Distribuição por tipo de crime",
+     *     description="Retorna distribuição de ocorrências por tipo de crime",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="start_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="end_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="days", in="query", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="region_id", in="query", @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Distribuição por tipo",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/CrimeDistribution"))
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      */
     public function distributionByType(Request $request): JsonResponse
     {
@@ -82,7 +177,27 @@ class AnalyticsController extends Controller
     /**
      * Get distribution by region.
      *
-     * GET /api/analytics/distribution/region
+     * @OA\Get(
+     *     path="/analytics/distribution/region",
+     *     operationId="getDistributionByRegion",
+     *     tags={"Analytics"},
+     *     summary="Distribuição por região",
+     *     description="Retorna distribuição de ocorrências por região",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="start_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="end_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="days", in="query", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="crime_type_id", in="query", @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Distribuição por região",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/RegionHeatmap"))
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      */
     public function distributionByRegion(Request $request): JsonResponse
     {
@@ -100,7 +215,26 @@ class AnalyticsController extends Controller
     /**
      * Get temporal trends.
      *
-     * GET /api/analytics/trends
+     * @OA\Get(
+     *     path="/analytics/trends",
+     *     operationId="getTrends",
+     *     tags={"Analytics"},
+     *     summary="Tendências temporais",
+     *     description="Retorna análise de tendências temporais de ocorrências",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="start_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="end_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="days", in="query", @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Dados de tendências",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/TimeSeriesPoint"))
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      */
     public function trends(Request $request): JsonResponse
     {
@@ -118,7 +252,32 @@ class AnalyticsController extends Controller
     /**
      * Get data quality metrics.
      *
-     * GET /api/analytics/quality
+     * @OA\Get(
+     *     path="/analytics/quality",
+     *     operationId="getQuality",
+     *     tags={"Analytics"},
+     *     summary="Métricas de qualidade de dados",
+     *     description="Retorna métricas de qualidade dos dados do sistema",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="start_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="end_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Métricas de qualidade",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="completeness", type="number", format="float"),
+     *                 @OA\Property(property="accuracy", type="number", format="float"),
+     *                 @OA\Property(property="timeliness", type="number", format="float"),
+     *                 @OA\Property(property="consistency", type="number", format="float")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      *
      * @see Requirement 20.4 - Data quality metrics
      */
@@ -138,7 +297,32 @@ class AnalyticsController extends Controller
     /**
      * Get moderation statistics.
      *
-     * GET /api/analytics/moderation
+     * @OA\Get(
+     *     path="/analytics/moderation",
+     *     operationId="getModerationStats",
+     *     tags={"Analytics"},
+     *     summary="Estatísticas de moderação",
+     *     description="Retorna estatísticas do sistema de moderação",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="start_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="end_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Estatísticas de moderação",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="pending", type="integer"),
+     *                 @OA\Property(property="approved", type="integer"),
+     *                 @OA\Property(property="rejected", type="integer"),
+     *                 @OA\Property(property="avg_response_time", type="number")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      */
     public function moderation(Request $request): JsonResponse
     {
@@ -156,7 +340,38 @@ class AnalyticsController extends Controller
     /**
      * Export analytics data.
      *
-     * GET /api/analytics/export
+     * @OA\Get(
+     *     path="/analytics/export",
+     *     operationId="exportAnalytics",
+     *     tags={"Analytics"},
+     *     summary="Exportar dados analíticos",
+     *     description="Exporta dados analíticos em formato CSV, PDF ou JSON",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="format",
+     *         in="query",
+     *         description="Formato de exportação",
+     *         @OA\Schema(type="string", enum={"csv", "pdf", "json"}, default="csv")
+     *     ),
+     *     @OA\Parameter(
+     *         name="type",
+     *         in="query",
+     *         description="Tipo de dados a exportar",
+     *         @OA\Schema(type="string", enum={"occurrences", "summary", "distribution"}, default="occurrences")
+     *     ),
+     *     @OA\Parameter(name="start_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="end_date", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Arquivo exportado",
+     *         @OA\MediaType(
+     *             mediaType="text/csv",
+     *             @OA\Schema(type="string", format="binary")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Não autenticado"),
+     *     @OA\Response(response=403, description="Sem permissão")
+     * )
      *
      * @see Requirement 20.3 - Export reports in CSV and PDF format
      */

@@ -2,9 +2,13 @@
 
 namespace App\Services\MapAdapters;
 
-use App\Models\Route;
+use App\Contracts\MapAdapterInterface;
 use App\Services\Cache\TrafficCacheManager;
-use App\Services\MapAdapters\Contracts\MapAdapterInterface;
+use App\ValueObjects\Address;
+use App\ValueObjects\Coordinates;
+use App\ValueObjects\Route;
+use App\ValueObjects\RouteOptions;
+use App\ValueObjects\TrafficData;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -40,6 +44,36 @@ class HybridTrafficAdapter implements MapAdapterInterface
 
     /**
      * {@inheritdoc}
+     */
+    public function getProviderName(): string
+    {
+        return 'hybrid';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function calculateRoute(
+        Coordinates $origin,
+        Coordinates $destination,
+        ?RouteOptions $options = null
+    ): Route {
+        return $this->nominatimAdapter->calculateRoute($origin, $destination, $options);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function calculateAlternativeRoutes(
+        Coordinates $origin,
+        Coordinates $destination,
+        int $count = 3
+    ): array {
+        return $this->nominatimAdapter->calculateAlternativeRoutes($origin, $destination, $count);
+    }
+
+    /**
+     * {@inheritdoc}
      * Usa Nominatim para geocodificação.
      */
     public function geocode(string $address): array
@@ -51,18 +85,9 @@ class HybridTrafficAdapter implements MapAdapterInterface
      * {@inheritdoc}
      * Usa Nominatim para geocodificação reversa.
      */
-    public function reverseGeocode(float $lat, float $lng): ?Address
+    public function reverseGeocode(Coordinates $coordinates): Address
     {
-        return $this->nominatimAdapter->reverseGeocode($lat, $lng);
-    }
-
-    /**
-     * {@inheritdoc}
-     * Usa Nominatim para roteamento básico.
-     */
-    public function getRoute(array $waypoints, array $options = []): Route
-    {
-        return $this->nominatimAdapter->getRoute($waypoints, $options);
+        return $this->nominatimAdapter->reverseGeocode($coordinates);
     }
 
     /**
@@ -103,6 +128,15 @@ class HybridTrafficAdapter implements MapAdapterInterface
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function isAvailable(): bool
+    {
+        // Híbrido é disponível se pelo menos Nominatim funciona
+        return $this->nominatimAdapter->isAvailable();
+    }
+
+    /**
      * Gera dados de trânsito estimados baseados em padrões históricos.
      */
     private function getEstimatedTrafficData(Route $route): TrafficData
@@ -114,16 +148,11 @@ class HybridTrafficAdapter implements MapAdapterInterface
         // Fatores de multiplicação baseados em horário
         $trafficMultiplier = $this->getTrafficMultiplier($currentHour, $isWeekend);
         
-        $estimatedDuration = $baseTime * $trafficMultiplier;
-        $delay = max(0, $estimatedDuration - $baseTime);
+        $estimatedDuration = (int) ($baseTime * $trafficMultiplier);
         
         return TrafficData::fromArray([
             'current_duration' => $estimatedDuration,
             'typical_duration' => $baseTime,
-            'delay' => $delay,
-            'incidents' => [],
-            'estimated' => true,
-            'confidence' => $this->calculateEstimateConfidence($currentHour, $isWeekend)
         ]);
     }
 
@@ -133,51 +162,21 @@ class HybridTrafficAdapter implements MapAdapterInterface
     private function getTrafficMultiplier(int $hour, bool $isWeekend): float
     {
         if ($isWeekend) {
-            // Fim de semana: trânsito mais leve
             if ($hour >= 10 && $hour <= 14) {
-                return 1.2; // Almoço/compras
+                return 1.2;
             }
             return 1.0;
         }
         
-        // Dias úteis
         $multipliers = [
-            // 0-6h: madrugada
             0 => 0.8, 1 => 0.8, 2 => 0.8, 3 => 0.8, 4 => 0.8, 5 => 0.8, 6 => 0.9,
-            // 7-9h: pico manhã
             7 => 1.4, 8 => 1.6, 9 => 1.3,
-            // 10-16h: normal
             10 => 1.1, 11 => 1.1, 12 => 1.2, 13 => 1.2, 14 => 1.1, 15 => 1.1, 16 => 1.2,
-            // 17-19h: pico tarde
             17 => 1.5, 18 => 1.7, 19 => 1.4,
-            // 20-23h: noite
             20 => 1.2, 21 => 1.1, 22 => 1.0, 23 => 0.9
         ];
         
         return $multipliers[$hour] ?? 1.0;
-    }
-
-    /**
-     * Calcula confiança da estimativa (0-1).
-     */
-    private function calculateEstimateConfidence(int $hour, bool $isWeekend): float
-    {
-        // Maior confiança em horários com padrões mais previsíveis
-        if ($isWeekend) {
-            return 0.7; // Fim de semana é mais previsível
-        }
-        
-        // Horários de pico têm padrões mais consistentes
-        if (($hour >= 7 && $hour <= 9) || ($hour >= 17 && $hour <= 19)) {
-            return 0.8;
-        }
-        
-        // Madrugada é muito previsível
-        if ($hour >= 0 && $hour <= 6) {
-            return 0.9;
-        }
-        
-        return 0.6; // Outros horários
     }
 
     /**
@@ -188,21 +187,17 @@ class HybridTrafficAdapter implements MapAdapterInterface
         $usage = $this->getTrafficAPIUsage();
         $maxPerHour = $this->config['max_traffic_requests_per_hour'];
         
-        // Verifica quota horária
         if ($usage['current_hour'] >= $maxPerHour) {
             return false;
         }
         
-        // Verifica cache hit ratio
         $cacheStats = $this->cacheManager->getCacheStats();
         $hitRatio = $cacheStats['valid_keys'] / max(1, $cacheStats['total_keys']);
         
         if ($hitRatio < $this->config['cache_hit_ratio_threshold']) {
-            // Cache hit ratio baixo, usar API para melhorar cache
             return true;
         }
         
-        // Usa API apenas para rotas importantes ou em horários críticos
         return $this->isHighPriorityTime();
     }
 
@@ -215,10 +210,9 @@ class HybridTrafficAdapter implements MapAdapterInterface
         $isWeekend = now()->isWeekend();
         
         if ($isWeekend) {
-            return false; // Fim de semana não é prioridade
+            return false;
         }
         
-        // Horários de pico são alta prioridade
         return ($hour >= 7 && $hour <= 9) || ($hour >= 17 && $hour <= 19);
     }
 
@@ -229,7 +223,7 @@ class HybridTrafficAdapter implements MapAdapterInterface
     {
         $key = 'traffic_api_usage:' . now()->format('Y-m-d-H');
         $current = cache()->get($key, 0);
-        cache()->put($key, $current + 1, 3600); // TTL de 1 hora
+        cache()->put($key, $current + 1, 3600);
     }
 
     /**
@@ -238,7 +232,6 @@ class HybridTrafficAdapter implements MapAdapterInterface
     private function getTrafficAPIUsage(): array
     {
         $currentHour = 'traffic_api_usage:' . now()->format('Y-m-d-H');
-        $today = 'traffic_api_usage:' . now()->format('Y-m-d');
         
         return [
             'current_hour' => cache()->get($currentHour, 0),
@@ -264,18 +257,6 @@ class HybridTrafficAdapter implements MapAdapterInterface
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function healthCheck(): bool
-    {
-        $nominatimHealth = $this->nominatimAdapter->healthCheck();
-        $trafficHealth = $this->trafficAdapter->healthCheck();
-        
-        // Híbrido é saudável se pelo menos Nominatim funciona
-        return $nominatimHealth;
-    }
-
-    /**
      * Obtém estatísticas detalhadas do adapter híbrido.
      */
     public function getStats(): array
@@ -283,8 +264,8 @@ class HybridTrafficAdapter implements MapAdapterInterface
         return [
             'traffic_api_usage' => $this->getTrafficAPIUsage(),
             'cache_stats' => $this->cacheManager->getCacheStats(),
-            'nominatim_health' => $this->nominatimAdapter->healthCheck(),
-            'traffic_adapter_health' => $this->trafficAdapter->healthCheck(),
+            'nominatim_health' => $this->nominatimAdapter->isAvailable(),
+            'traffic_adapter_health' => $this->trafficAdapter->isAvailable(),
             'config' => $this->config
         ];
     }

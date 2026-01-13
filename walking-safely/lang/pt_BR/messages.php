@@ -117,4 +117,10 @@ return [
         'updated' => 'Atualizado com sucesso',
         'deleted' => 'Removido com sucesso',
     ],
+
+    // Occurrence messages
+    'occurrence_created' => 'Ocorrência registrada com sucesso',
+    'occurrence_not_found' => 'Ocorrência não encontrada',
+    'occurrence_deleted' => 'Ocorrência excluída com sucesso',
+    'occurrence_delete_forbidden' => 'Você não tem permissão para excluir esta ocorrência',
 ];

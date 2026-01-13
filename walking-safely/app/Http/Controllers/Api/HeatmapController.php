@@ -22,7 +22,93 @@ class HeatmapController extends Controller
     /**
      * Get heatmap data for a given bounding box.
      *
-     * GET /api/heatmap
+     * @OA\Get(
+     *     path="/heatmap",
+     *     operationId="getHeatmap",
+     *     tags={"Heatmap"},
+     *     summary="Obter dados do mapa de calor",
+     *     description="Retorna dados de concentração de ocorrências para renderização de mapa de calor. Granularidade ajusta automaticamente com o zoom.",
+     *     @OA\Parameter(
+     *         name="min_lat",
+     *         in="query",
+     *         required=true,
+     *         description="Latitude mínima do bounding box",
+     *         @OA\Schema(type="number", format="float", example=-23.6)
+     *     ),
+     *     @OA\Parameter(
+     *         name="min_lng",
+     *         in="query",
+     *         required=true,
+     *         description="Longitude mínima do bounding box",
+     *         @OA\Schema(type="number", format="float", example=-46.7)
+     *     ),
+     *     @OA\Parameter(
+     *         name="max_lat",
+     *         in="query",
+     *         required=true,
+     *         description="Latitude máxima do bounding box",
+     *         @OA\Schema(type="number", format="float", example=-23.5)
+     *     ),
+     *     @OA\Parameter(
+     *         name="max_lng",
+     *         in="query",
+     *         required=true,
+     *         description="Longitude máxima do bounding box",
+     *         @OA\Schema(type="number", format="float", example=-46.6)
+     *     ),
+     *     @OA\Parameter(
+     *         name="zoom",
+     *         in="query",
+     *         description="Nível de zoom do mapa (1-18)",
+     *         @OA\Schema(type="integer", minimum=1, maximum=18, example=12)
+     *     ),
+     *     @OA\Parameter(
+     *         name="crime_type_id",
+     *         in="query",
+     *         description="Filtrar por tipo de crime",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="crime_category_id",
+     *         in="query",
+     *         description="Filtrar por categoria de crime",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="start_date",
+     *         in="query",
+     *         description="Data inicial",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="end_date",
+     *         in="query",
+     *         description="Data final",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="days",
+     *         in="query",
+     *         description="Últimos N dias",
+     *         @OA\Schema(type="integer", minimum=1, maximum=365)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Dados do mapa de calor",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(ref="#/components/schemas/HeatmapPoint")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
      *
      * @see Requirement 10.1 - Render heatmap layer
      * @see Requirement 10.2 - Filter by crime type and time period
@@ -83,7 +169,54 @@ class HeatmapController extends Controller
     /**
      * Get heatmap data aggregated by region.
      *
-     * GET /api/heatmap/regions
+     * @OA\Get(
+     *     path="/heatmap/regions",
+     *     operationId="getHeatmapByRegion",
+     *     tags={"Heatmap"},
+     *     summary="Mapa de calor por região",
+     *     description="Retorna dados de ocorrências agregados por região administrativa",
+     *     @OA\Parameter(
+     *         name="crime_type_id",
+     *         in="query",
+     *         description="Filtrar por tipo de crime",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="crime_category_id",
+     *         in="query",
+     *         description="Filtrar por categoria de crime",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="start_date",
+     *         in="query",
+     *         description="Data inicial",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="end_date",
+     *         in="query",
+     *         description="Data final",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="days",
+     *         in="query",
+     *         description="Últimos N dias",
+     *         @OA\Schema(type="integer", minimum=1, maximum=365)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Dados agregados por região",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(ref="#/components/schemas/RegionHeatmap")
+     *             )
+     *         )
+     *     )
+     * )
      */
     public function byRegion(HeatmapRequest $request): JsonResponse
     {
@@ -116,7 +249,66 @@ class HeatmapController extends Controller
     /**
      * Get occurrence distribution by crime type.
      *
-     * GET /api/heatmap/distribution
+     * @OA\Get(
+     *     path="/heatmap/distribution",
+     *     operationId="getDistribution",
+     *     tags={"Heatmap"},
+     *     summary="Distribuição por tipo de crime",
+     *     description="Retorna a distribuição de ocorrências por tipo de crime",
+     *     @OA\Parameter(
+     *         name="min_lat",
+     *         in="query",
+     *         description="Latitude mínima do bounding box",
+     *         @OA\Schema(type="number", format="float")
+     *     ),
+     *     @OA\Parameter(
+     *         name="min_lng",
+     *         in="query",
+     *         description="Longitude mínima do bounding box",
+     *         @OA\Schema(type="number", format="float")
+     *     ),
+     *     @OA\Parameter(
+     *         name="max_lat",
+     *         in="query",
+     *         description="Latitude máxima do bounding box",
+     *         @OA\Schema(type="number", format="float")
+     *     ),
+     *     @OA\Parameter(
+     *         name="max_lng",
+     *         in="query",
+     *         description="Longitude máxima do bounding box",
+     *         @OA\Schema(type="number", format="float")
+     *     ),
+     *     @OA\Parameter(
+     *         name="start_date",
+     *         in="query",
+     *         description="Data inicial",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="end_date",
+     *         in="query",
+     *         description="Data final",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="days",
+     *         in="query",
+     *         description="Últimos N dias",
+     *         @OA\Schema(type="integer", minimum=1, maximum=365)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Distribuição por tipo de crime",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(ref="#/components/schemas/CrimeDistribution")
+     *             )
+     *         )
+     *     )
+     * )
      */
     public function distribution(HeatmapRequest $request): JsonResponse
     {

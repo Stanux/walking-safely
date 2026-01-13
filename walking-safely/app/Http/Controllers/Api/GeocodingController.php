@@ -27,7 +27,42 @@ class GeocodingController extends Controller
     /**
      * Geocode an address string to coordinates.
      *
-     * GET /api/geocode
+     * @OA\Get(
+     *     path="/geocode",
+     *     operationId="geocode",
+     *     tags={"Geocoding"},
+     *     summary="Geocodificar endereço",
+     *     description="Converte um endereço em coordenadas geográficas. Retorna até 5 resultados em até 2 segundos.",
+     *     @OA\Parameter(
+     *         name="query",
+     *         in="query",
+     *         required=true,
+     *         description="Endereço a ser geocodificado (mínimo 3 caracteres)",
+     *         @OA\Schema(type="string", minLength=3, maxLength=255, example="Av. Paulista, São Paulo")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Resultados da geocodificação",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(ref="#/components/schemas/Address")
+     *             ),
+     *             @OA\Property(property="count", type="integer", example=3)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     ),
+     *     @OA\Response(
+     *         response=503,
+     *         description="Serviço de geocodificação indisponível",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      *
      * @see Requirement 9.1 - Return up to 5 matching results in up to 2 seconds
      */
@@ -77,7 +112,44 @@ class GeocodingController extends Controller
     /**
      * Reverse geocode coordinates to an address.
      *
-     * GET /api/reverse-geocode
+     * @OA\Get(
+     *     path="/reverse-geocode",
+     *     operationId="reverseGeocode",
+     *     tags={"Geocoding"},
+     *     summary="Geocodificação reversa",
+     *     description="Converte coordenadas geográficas em um endereço",
+     *     @OA\Parameter(
+     *         name="latitude",
+     *         in="query",
+     *         required=true,
+     *         description="Latitude",
+     *         @OA\Schema(type="number", format="float", minimum=-90, maximum=90, example=-23.5505)
+     *     ),
+     *     @OA\Parameter(
+     *         name="longitude",
+     *         in="query",
+     *         required=true,
+     *         description="Longitude",
+     *         @OA\Schema(type="number", format="float", minimum=-180, maximum=180, example=-46.6333)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Endereço encontrado",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/Address")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     ),
+     *     @OA\Response(
+     *         response=503,
+     *         description="Serviço de geocodificação indisponível",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      *
      * @see Requirement 9.2 - Show address, city, and geographic coordinates
      */

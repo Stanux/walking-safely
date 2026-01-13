@@ -35,6 +35,8 @@ class CrimeTypeSeeder extends Seeder
             ['id' => 4, 'category_id' => 2, 'name' => 'Harassment', 'created_at' => now(), 'updated_at' => now()],
             ['id' => 5, 'category_id' => 3, 'name' => 'Vandalism', 'created_at' => now(), 'updated_at' => now()],
             ['id' => 6, 'category_id' => 4, 'name' => 'Suspicious Activity', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 7, 'category_id' => 3, 'name' => 'Low Lighting', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 8, 'category_id' => 3, 'name' => 'Obstructed Path', 'created_at' => now(), 'updated_at' => now()],
         ];
 
         foreach ($crimeTypes as $crimeType) {
@@ -52,6 +54,8 @@ class CrimeTypeSeeder extends Seeder
             ['crime_type_id' => 4, 'locale' => 'pt_BR', 'name' => 'Assédio', 'created_at' => now(), 'updated_at' => now()],
             ['crime_type_id' => 5, 'locale' => 'pt_BR', 'name' => 'Vandalismo', 'created_at' => now(), 'updated_at' => now()],
             ['crime_type_id' => 6, 'locale' => 'pt_BR', 'name' => 'Atividade Suspeita', 'created_at' => now(), 'updated_at' => now()],
+            ['crime_type_id' => 7, 'locale' => 'pt_BR', 'name' => 'Baixa Iluminação', 'created_at' => now(), 'updated_at' => now()],
+            ['crime_type_id' => 8, 'locale' => 'pt_BR', 'name' => 'Via Obstruída', 'created_at' => now(), 'updated_at' => now()],
             // English translations
             ['crime_type_id' => 1, 'locale' => 'en', 'name' => 'Robbery', 'created_at' => now(), 'updated_at' => now()],
             ['crime_type_id' => 2, 'locale' => 'en', 'name' => 'Theft', 'created_at' => now(), 'updated_at' => now()],
@@ -59,6 +63,8 @@ class CrimeTypeSeeder extends Seeder
             ['crime_type_id' => 4, 'locale' => 'en', 'name' => 'Harassment', 'created_at' => now(), 'updated_at' => now()],
             ['crime_type_id' => 5, 'locale' => 'en', 'name' => 'Vandalism', 'created_at' => now(), 'updated_at' => now()],
             ['crime_type_id' => 6, 'locale' => 'en', 'name' => 'Suspicious Activity', 'created_at' => now(), 'updated_at' => now()],
+            ['crime_type_id' => 7, 'locale' => 'en', 'name' => 'Low Lighting', 'created_at' => now(), 'updated_at' => now()],
+            ['crime_type_id' => 8, 'locale' => 'en', 'name' => 'Obstructed Path', 'created_at' => now(), 'updated_at' => now()],
         ];
 
         foreach ($translations as $translation) {

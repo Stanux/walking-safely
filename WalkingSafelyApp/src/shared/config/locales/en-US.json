@@ -1,0 +1,70 @@
+{
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "navigation": {
+    "eta": "ETA",
+    "remaining": "Remaining",
+    "speed": "Speed",
+    "risk": "Risk",
+    "distance": "Distance",
+    "duration": "Duration",
+    "riskIndex": "Risk Index",
+    "endNavigation": "End Navigation",
+    "startNavigation": "Start Navigation",
+    "showInstructions": "Show Instructions",
+    "calculating": "Calculating...",
+    "recalculating": "Recalculating route...",
+    "exitConfirmTitle": "End Navigation?",
+    "exitConfirmMessage": "Are you sure you want to end the current navigation?",
+    "arrived": "You have arrived at your destination!",
+    "routeDeviation": "You have left the route",
+    "riskAlert": "Risk Alert",
+    "riskAlertAccessibility": "Risk alert: {{crimeType}} at {{distance}}",
+    "highRiskArea": "High risk area nearby",
+    "instructions": "Instructions",
+    "closeInstructions": "Close",
+    "ahead": "ahead",
+    "tapToDismiss": "Tap to dismiss"
+  },
+  "route": {
+    "fastest": "Fastest",
+    "safest": "Safest",
+    "selectRoute": "Select Route",
+    "noRouteFound": "No route found"
+  },
+  "occurrence": {
+    "report": "Report Occurrence",
+    "type": "Type",
+    "severity": "Severity",
+    "description": "Description",
+    "submit": "Submit",
+    "success": "Occurrence reported successfully",
+    "type.robbery": "Robbery",
+    "type.theft": "Theft",
+    "type.assault": "Assault",
+    "type.harassment": "Harassment",
+    "type.vandalism": "Vandalism",
+    "type.suspicious": "Suspicious Activity",
+    "type.lowLighting": "Low Lighting",
+    "type.obstructedPath": "Obstructed Path"
+  },
+  "severity": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "critical": "Critical"
+  }
+}

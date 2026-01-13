@@ -1,0 +1,8 @@
+# Shared directory
+# Cross-cutting concerns and reusable utilities:
+# - components/ (reusable UI components)
+# - services/ (API client, storage)
+# - theme/ (design tokens, Tamagui config)
+# - hooks/ (shared hooks)
+# - types/ (global types)
+# - utils/ (utility functions)

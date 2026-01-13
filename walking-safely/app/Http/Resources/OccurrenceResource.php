@@ -48,6 +48,7 @@ class OccurrenceResource extends JsonResource
             'source' => $this->resource->source?->value,
             'status' => $this->resource->status?->value,
             'region_id' => $this->resource->region_id,
+            'created_by' => $this->resource->created_by,
             'expires_at' => $this->resource->expires_at?->toIso8601String(),
             'created_at' => $this->resource->created_at?->toIso8601String(),
             'updated_at' => $this->resource->updated_at?->toIso8601String(),

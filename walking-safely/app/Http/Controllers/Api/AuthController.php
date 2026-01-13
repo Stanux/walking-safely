@@ -24,7 +24,39 @@ class AuthController extends Controller
     /**
      * Register a new user.
      *
-     * POST /api/auth/register
+     * @OA\Post(
+     *     path="/auth/register",
+     *     operationId="register",
+     *     tags={"Authentication"},
+     *     summary="Registrar novo usuário",
+     *     description="Cria uma nova conta de usuário e retorna um token de autenticação",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name", "email", "password", "password_confirmation"},
+     *             @OA\Property(property="name", type="string", maxLength=255, example="João Silva"),
+     *             @OA\Property(property="email", type="string", format="email", maxLength=255, example="joao@email.com"),
+     *             @OA\Property(property="password", type="string", format="password", minLength=8, example="senha123"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="senha123"),
+     *             @OA\Property(property="locale", type="string", enum={"pt_BR", "en", "es"}, example="pt_BR")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Usuário registrado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/User"),
+     *             @OA\Property(property="token", type="string", example="1|abc123xyz..."),
+     *             @OA\Property(property="token_type", type="string", example="Bearer"),
+     *             @OA\Property(property="message", type="string", example="Registro realizado com sucesso")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
      */
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -63,7 +95,51 @@ class AuthController extends Controller
     /**
      * Login a user.
      *
-     * POST /api/auth/login
+     * @OA\Post(
+     *     path="/auth/login",
+     *     operationId="login",
+     *     tags={"Authentication"},
+     *     summary="Autenticar usuário",
+     *     description="Autentica um usuário e retorna um token de acesso. Conta é bloqueada após 5 tentativas falhas.",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email", "password"},
+     *             @OA\Property(property="email", type="string", format="email", example="joao@email.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="senha123"),
+     *             @OA\Property(property="revoke_existing", type="boolean", example=false, description="Revogar tokens existentes")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login realizado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/User"),
+     *             @OA\Property(property="token", type="string", example="1|abc123xyz..."),
+     *             @OA\Property(property="token_type", type="string", example="Bearer"),
+     *             @OA\Property(property="message", type="string", example="Login realizado com sucesso")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Credenciais inválidas",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string", example="invalid_credentials"),
+     *             @OA\Property(property="message", type="string", example="Credenciais inválidas"),
+     *             @OA\Property(property="attempts_remaining", type="integer", example=4)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=423,
+     *         description="Conta bloqueada",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string", example="account_locked"),
+     *             @OA\Property(property="message", type="string", example="Conta bloqueada por 15 minutos"),
+     *             @OA\Property(property="locked_until", type="string", format="date-time"),
+     *             @OA\Property(property="remaining_seconds", type="integer", example=900)
+     *         )
+     *     )
+     * )
      *
      * @see Requirement 16.4 - Account lockout after failed attempts
      */
@@ -163,7 +239,26 @@ class AuthController extends Controller
     /**
      * Logout the current user.
      *
-     * POST /api/auth/logout
+     * @OA\Post(
+     *     path="/auth/logout",
+     *     operationId="logout",
+     *     tags={"Authentication"},
+     *     summary="Encerrar sessão",
+     *     description="Revoga o token de acesso atual do usuário",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Logout realizado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Logout realizado com sucesso")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      */
     public function logout(Request $request): JsonResponse
     {
@@ -197,7 +292,26 @@ class AuthController extends Controller
     /**
      * Get the current authenticated user.
      *
-     * GET /api/auth/me
+     * @OA\Get(
+     *     path="/auth/me",
+     *     operationId="me",
+     *     tags={"Authentication"},
+     *     summary="Obter usuário atual",
+     *     description="Retorna os dados do usuário autenticado",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Dados do usuário",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="data", ref="#/components/schemas/User")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      */
     public function me(Request $request): JsonResponse
     {

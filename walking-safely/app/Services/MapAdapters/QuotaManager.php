@@ -61,37 +61,46 @@ class QuotaManager
      */
     public function recordCall(string $provider, string $operation, float $cost = 0.0): void
     {
-        $monthKey = $this->getMonthKey($provider);
-        $dayKey = $this->getDayKey($provider);
+        try {
+            $monthKey = $this->getMonthKey($provider);
+            $dayKey = $this->getDayKey($provider);
 
-        // Increment monthly counter
-        $monthlyCount = Cache::increment($monthKey);
-        if ($monthlyCount === 1) {
-            // Set expiry to end of month
-            Cache::put($monthKey, 1, $this->getEndOfMonth());
+            // Increment monthly counter
+            $monthlyCount = Cache::increment($monthKey);
+            if ($monthlyCount === 1) {
+                // Set expiry to end of month
+                Cache::put($monthKey, 1, $this->getEndOfMonth());
+            }
+
+            // Increment daily counter
+            $dailyCount = Cache::increment($dayKey);
+            if ($dailyCount === 1) {
+                // Set expiry to end of day
+                Cache::put($dayKey, 1, now()->endOfDay());
+            }
+
+            // Track cost
+            $this->recordCost($provider, $cost);
+
+            // Log operation
+            Log::debug("Map API call recorded", [
+                'provider' => $provider,
+                'operation' => $operation,
+                'monthly_count' => $monthlyCount,
+                'daily_count' => $dailyCount,
+                'cost' => $cost,
+            ]);
+
+            // Check for alerts
+            $this->checkAlerts($provider);
+        } catch (\Exception $e) {
+            // Se o cache falhar, apenas loga e continua
+            Log::warning("QuotaManager cache error, continuing without tracking", [
+                'provider' => $provider,
+                'operation' => $operation,
+                'error' => $e->getMessage(),
+            ]);
         }
-
-        // Increment daily counter
-        $dailyCount = Cache::increment($dayKey);
-        if ($dailyCount === 1) {
-            // Set expiry to end of day
-            Cache::put($dayKey, 1, now()->endOfDay());
-        }
-
-        // Track cost
-        $this->recordCost($provider, $cost);
-
-        // Log operation
-        Log::debug("Map API call recorded", [
-            'provider' => $provider,
-            'operation' => $operation,
-            'monthly_count' => $monthlyCount,
-            'daily_count' => $dailyCount,
-            'cost' => $cost,
-        ]);
-
-        // Check for alerts
-        $this->checkAlerts($provider);
     }
 
     /**
@@ -146,7 +155,15 @@ class QuotaManager
      */
     public function getMonthlyUsage(string $provider): int
     {
-        return (int) Cache::get($this->getMonthKey($provider), 0);
+        try {
+            return (int) Cache::get($this->getMonthKey($provider), 0);
+        } catch (\Exception $e) {
+            Log::warning("QuotaManager cache error getting monthly usage", [
+                'provider' => $provider,
+                'error' => $e->getMessage(),
+            ]);
+            return 0;
+        }
     }
 
     /**
@@ -157,7 +174,15 @@ class QuotaManager
      */
     public function getDailyUsage(string $provider): int
     {
-        return (int) Cache::get($this->getDayKey($provider), 0);
+        try {
+            return (int) Cache::get($this->getDayKey($provider), 0);
+        } catch (\Exception $e) {
+            Log::warning("QuotaManager cache error getting daily usage", [
+                'provider' => $provider,
+                'error' => $e->getMessage(),
+            ]);
+            return 0;
+        }
     }
 
     /**
@@ -168,7 +193,15 @@ class QuotaManager
      */
     public function getMonthlyCost(string $provider): float
     {
-        return (float) Cache::get($this->getCostKey($provider), 0.0);
+        try {
+            return (float) Cache::get($this->getCostKey($provider), 0.0);
+        } catch (\Exception $e) {
+            Log::warning("QuotaManager cache error getting monthly cost", [
+                'provider' => $provider,
+                'error' => $e->getMessage(),
+            ]);
+            return 0.0;
+        }
     }
 
     /**
@@ -226,11 +259,19 @@ class QuotaManager
             return;
         }
 
-        $costKey = $this->getCostKey($provider);
-        $currentCost = (float) Cache::get($costKey, 0.0);
-        $newCost = $currentCost + $cost;
+        try {
+            $costKey = $this->getCostKey($provider);
+            $currentCost = (float) Cache::get($costKey, 0.0);
+            $newCost = $currentCost + $cost;
 
-        Cache::put($costKey, $newCost, $this->getEndOfMonth());
+            Cache::put($costKey, $newCost, $this->getEndOfMonth());
+        } catch (\Exception $e) {
+            Log::warning("QuotaManager cache error recording cost", [
+                'provider' => $provider,
+                'cost' => $cost,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
