@@ -13,6 +13,14 @@ $logFile = '/var/log/deploy.log';
 
 // Validate request
 $payload = file_get_contents('php://input');
+
+// Handle both JSON and form-urlencoded payloads
+$contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+if (strpos($contentType, 'application/x-www-form-urlencoded') !== false) {
+    // GitHub sends payload as form field when content-type is urlencoded
+    $payload = $_POST['payload'] ?? $payload;
+}
+
 $signature = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
 
 if (!$signature) {
@@ -29,9 +37,13 @@ if (!hash_equals($hash, $signature)) {
 // Parse payload
 $data = json_decode($payload, true);
 
+// Log received data for debugging
+file_put_contents($logFile, date('Y-m-d H:i:s') . " - Received ref: " . ($data['ref'] ?? 'null') . "\n", FILE_APPEND);
+
 // Only deploy on push to main branch
-if (($data['ref'] ?? '') !== 'refs/heads/main') {
-    echo 'Not main branch, skipping deploy';
+$ref = $data['ref'] ?? '';
+if ($ref !== 'refs/heads/main') {
+    echo 'Not main branch, skipping deploy. Ref: ' . $ref;
     exit(0);
 }
 
