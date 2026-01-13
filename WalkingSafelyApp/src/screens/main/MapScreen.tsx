@@ -29,6 +29,7 @@ import {RiskPointPopup} from '@/components/map/RiskPointPopup';
 import {useMapStore} from '@/store/mapStore';
 import {useOccurrenceStore} from '@/store/occurrenceStore';
 import {useAuthStore} from '@/features/auth/store/authStore';
+import {logoutUseCase} from '@/features/auth/domain/useCases/logoutUseCase';
 import {Coordinates, MapBounds, Address} from '@/types/models';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -142,6 +143,28 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
   // Auth store
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const user = useAuthStore(state => state.user);
+
+  // Logout handler
+  const handleLogout = useCallback(async () => {
+    Alert.alert(
+      'Sair',
+      'Deseja realmente sair da sua conta?',
+      [
+        {text: 'Cancelar', style: 'cancel'},
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logoutUseCase();
+            } catch (error) {
+              console.warn('[MapScreen] Logout error:', error);
+            }
+          },
+        },
+      ]
+    );
+  }, []);
 
   // Map store
   const {
@@ -522,15 +545,26 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
 
       {/* Header with greeting and search */}
       <View style={styles.headerContainer}>
-        {firstName && (
-          <Text
+        <View style={styles.greetingRow}>
+          {firstName && (
+            <Text
+              style={[
+                styles.greeting,
+                {color: isDark ? tokens.colors.text.primary.dark : tokens.colors.text.primary.light},
+              ]}>
+              Olá, {firstName}! 👋
+            </Text>
+          )}
+          <TouchableOpacity
             style={[
-              styles.greeting,
-              {color: isDark ? tokens.colors.text.primary.dark : tokens.colors.text.primary.light},
-            ]}>
-            Olá, {firstName}! 👋
-          </Text>
-        )}
+              styles.logoutButton,
+              {backgroundColor: isDark ? tokens.colors.surface.dark : tokens.colors.background.light},
+            ]}
+            onPress={handleLogout}
+            accessibilityLabel="Sair da conta">
+            <Text style={styles.logoutIcon}>🚪</Text>
+          </TouchableOpacity>
+        </View>
         
         {/* Search Bar */}
         <View
@@ -702,6 +736,24 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(255,255,255,0.8)',
     textShadowOffset: {width: 0, height: 1},
     textShadowRadius: 2,
+    flex: 1,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: tokens.spacing.sm,
+  },
+  logoutButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...tokens.shadow.sm,
+  },
+  logoutIcon: {
+    fontSize: 18,
   },
   searchContainer: {
     flexDirection: 'row',

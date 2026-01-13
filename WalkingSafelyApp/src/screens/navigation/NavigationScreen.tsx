@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  Modal as RNModal,
 } from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {colors, getRiskColor} from '../../theme/colors';
@@ -24,7 +25,6 @@ import {
 import {textStyles} from '../../theme/typography';
 import {MapView, MapViewRef, decodePolyline} from '../../components/map';
 import {Button} from '../../shared/components';
-import {Modal} from '../../shared/components';
 import {RiskAlertBanner} from '../../components/navigation';
 import {useNavigationStore} from '../../store/navigationStore';
 import {useMapStore} from '../../store/mapStore';
@@ -286,12 +286,18 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   // Local state
   const [userHeading, setUserHeading] = useState(0);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Debug: monitor showExitConfirm changes
+  useEffect(() => {
+    console.log('[NavigationScreen] showExitConfirm changed to:', showExitConfirm);
+  }, [showExitConfirm]);
   const [isMapReady, setIsMapReady] = useState(false);
   const [_traveledPath, setTraveledPath] = useState<Coordinates[]>([]);
 
   // Refs
   const isInitializedRef = useRef(false);
   const lastPositionRef = useRef<Coordinates | null>(null);
+  const showExitConfirmRef = useRef(false);
 
   // User position - prefer GPS, fallback to map store or origin
   const userPosition = currentPosition || origin;
@@ -325,7 +331,8 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
    * Requirement 11.1: Start Navigation_Mode when user clicks start
    */
   useEffect(() => {
-    if (isInitializedRef.current) {
+    // Skip if already initialized or if exit modal is showing
+    if (isInitializedRef.current || showExitConfirmRef.current) {
       return;
     }
     isInitializedRef.current = true;
@@ -337,9 +344,7 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
     // Pass route type preference (default to safest)
     startSession(initialRoute, 'safest', destination || undefined);
 
-    return () => {
-      isInitializedRef.current = false;
-    };
+    // No cleanup that resets isInitializedRef - we want to prevent re-initialization
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -519,6 +524,8 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
    * Handle exit navigation
    */
   const handleExitNavigation = useCallback(() => {
+    console.log('[NavigationScreen] handleExitNavigation called - showing confirm modal');
+    showExitConfirmRef.current = true;
     setShowExitConfirm(true);
   }, []);
 
@@ -527,6 +534,8 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
    * Requirement 17.1, 17.2, 17.3, 17.4
    */
   const confirmExitNavigation = useCallback(() => {
+    console.log('[NavigationScreen] confirmExitNavigation called');
+    showExitConfirmRef.current = false;
     setShowExitConfirm(false);
     endSession();
     stopNavigation();
@@ -543,6 +552,7 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
    * Cancel exit navigation
    */
   const cancelExitNavigation = useCallback(() => {
+    showExitConfirmRef.current = false;
     setShowExitConfirm(false);
   }, []);
 
@@ -641,31 +651,35 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       )}
 
       {/* Exit Confirmation Modal */}
-      <Modal
+      <RNModal
         visible={showExitConfirm}
-        onClose={cancelExitNavigation}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelExitNavigation}
       >
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>{t('navigation.exitConfirmTitle')}</Text>
-          <Text style={styles.modalMessage}>{t('navigation.exitConfirmMessage')}</Text>
-          <View style={styles.modalButtons}>
-            <Button
-              variant="outline"
-              onPress={cancelExitNavigation}
-              style={styles.modalButton}
-            >
-              {t('common.no')}
-            </Button>
-            <Button
-              variant="primary"
-              onPress={confirmExitNavigation}
-              style={styles.modalButton}
-            >
-              {t('common.yes')}
-            </Button>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>{t('navigation.exitConfirmTitle')}</Text>
+            <Text style={styles.modalMessage}>{t('navigation.exitConfirmMessage')}</Text>
+            <View style={styles.modalButtons}>
+              <Button
+                variant="outline"
+                onPress={cancelExitNavigation}
+                style={styles.modalButton}
+              >
+                {t('common.no')}
+              </Button>
+              <Button
+                variant="primary"
+                onPress={confirmExitNavigation}
+                style={styles.modalButton}
+              >
+                {t('common.yes')}
+              </Button>
+            </View>
           </View>
         </View>
-      </Modal>
+      </RNModal>
     </SafeAreaView>
   );
 };
@@ -778,6 +792,21 @@ const styles = StyleSheet.create({
   },
   exitButton: {
     backgroundColor: colors.error.main,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBox: {
+    backgroundColor: colors.background.primary,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    width: '85%',
+    maxWidth: 400,
+    alignItems: 'center',
+    ...shadows.lg,
   },
   modalContent: {
     alignItems: 'center',

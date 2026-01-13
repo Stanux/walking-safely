@@ -5,9 +5,8 @@
  * @module shared/config/api.config
  */
 
-// For development, use the local network IP of the server
-// TODO: In production, change this to the production API URL
-const API_URL = 'http://192.168.15.3:8080/api';
+// Production API URL
+const API_URL = 'http://50.21.181.92:8080/api';
 
 /**
  * API base URL

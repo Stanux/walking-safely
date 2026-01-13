@@ -3,7 +3,7 @@
  */
 
 // API Configuration
-export const API_BASE_URL = 'http://192.168.15.3:8080/api';
+export const API_BASE_URL = 'http://50.21.181.92:8080/api';
 
 // Debug log
 console.log('[Constants] API_BASE_URL loaded:', API_BASE_URL);
