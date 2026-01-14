@@ -15,5 +15,7 @@ export const API_BASE_URL = API_URL;
 
 /**
  * API timeout in milliseconds
+ * Increased to 60s to support long-distance route calculations (e.g., 600km+)
+ * The backend may need extra time to calculate alternative routes and risk analysis
  */
-export const API_TIMEOUT = 10000;
+export const API_TIMEOUT = 60000;

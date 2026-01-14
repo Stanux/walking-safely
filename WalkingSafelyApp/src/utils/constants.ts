@@ -9,7 +9,7 @@ export const API_BASE_URL = 'http://50.21.181.92:8080/api';
 console.log('[Constants] API_BASE_URL loaded:', API_BASE_URL);
 
 // Timeouts
-export const API_TIMEOUT = 15000; // 15 seconds (aumentado para conexões remotas)
+export const API_TIMEOUT = 60000; // 60 seconds (increased for long-distance route calculations)
 export const LOCATION_TIMEOUT = 15000; // 15 seconds
 export const DEBOUNCE_DELAY = 500; // 500ms for search
 

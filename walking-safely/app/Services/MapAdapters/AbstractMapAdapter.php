@@ -37,8 +37,9 @@ abstract class AbstractMapAdapter implements MapAdapterInterface
 
     /**
      * HTTP timeout in seconds.
+     * Increased to 30s to support long-distance route calculations (e.g., 600km+)
      */
-    protected int $httpTimeout = 10;
+    protected int $httpTimeout = 30;
 
     public function __construct(?QuotaManager $quotaManager = null)
     {

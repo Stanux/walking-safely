@@ -120,9 +120,19 @@ export const RoutePreviewScreen: React.FC<RoutePreviewScreenProps> = ({
       // Calculate route with default preference (safest - Req 7.2)
       calculateRoute(true).catch(error => {
         console.error('[RoutePreview] Route calculation error:', error);
+        
+        // Provide more specific error message based on error type
+        let errorMessage = 'Não foi possível calcular a rota. Tente novamente.';
+        
+        if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+          errorMessage = 'O cálculo da rota demorou muito. Para rotas muito longas, tente dividir em trechos menores.';
+        } else if (error?.status === 503 || error?.code === 'SERVICE_UNAVAILABLE') {
+          errorMessage = 'Serviço de rotas temporariamente indisponível. Tente novamente em alguns instantes.';
+        }
+        
         Alert.alert(
           'Erro',
-          'Não foi possível calcular a rota. Tente novamente.',
+          errorMessage,
           [{text: 'OK', onPress: () => navigation.goBack()}]
         );
       });
