@@ -26,7 +26,8 @@ import {
   componentSpacing,
 } from '../../theme/spacing';
 import {textStyles} from '../../theme/typography';
-import {MapView, MapViewRef, decodePolyline} from '../../components/map';
+import {MapView, MapViewRef, decodePolyline, splitRouteByPosition} from '../../components/map';
+import type {RouteSegmentData} from '../../components/map';
 import {Button} from '../../shared/components';
 import {RiskAlertBanner} from '../../components/navigation';
 import {useNavigationStore} from '../../store/navigationStore';
@@ -652,6 +653,46 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       mapRef.current.setCompassMode(true);
     }
   }, [currentPosition, userHeading, isMapReady]);
+
+  /**
+   * Update route segments with different colors for traveled vs remaining
+   * Requirements 12.1, 12.2, 12.3: Visual differentiation of route segments
+   */
+  useEffect(() => {
+    if (!isMapReady || !mapRef.current || !currentPosition || routeCoordinates.length < 2) {
+      return;
+    }
+
+    // Split route into traveled and remaining segments
+    const {traveledSegment, remainingSegment} = splitRouteByPosition(
+      routeCoordinates,
+      currentPosition,
+    );
+
+    // Build segments array for drawing
+    const segments: RouteSegmentData[] = [];
+
+    // Add traveled segment (gray-blue) if it has enough points
+    if (traveledSegment.coordinates.length >= 2) {
+      segments.push({
+        coordinates: traveledSegment.coordinates,
+        color: traveledSegment.color, // #78909C
+      });
+    }
+
+    // Add remaining segment (blue) if it has enough points
+    if (remainingSegment.coordinates.length >= 2) {
+      segments.push({
+        coordinates: remainingSegment.coordinates,
+        color: remainingSegment.color, // #2196F3
+      });
+    }
+
+    // Draw segmented route if we have segments
+    if (segments.length > 0) {
+      mapRef.current.drawSegmentedRoute(segments);
+    }
+  }, [isMapReady, currentPosition, routeCoordinates]);
 
   /**
    * Handle map ready

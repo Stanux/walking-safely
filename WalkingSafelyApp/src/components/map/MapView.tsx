@@ -58,6 +58,11 @@ export interface MapViewProps {
   style?: any;
 }
 
+export interface RouteSegmentData {
+  coordinates: Coordinates[];
+  color: string;
+}
+
 export interface MapViewRef {
   animateToCoordinate: (coordinate: Coordinates, duration?: number) => void;
   animateToRegion: (region: Region, duration?: number) => void;
@@ -65,6 +70,7 @@ export interface MapViewRef {
   getMapBounds: () => Promise<MapBounds>;
   setCamera: (camera: Partial<Camera>) => void;
   drawRoute: (coordinates: Coordinates[]) => void;
+  drawSegmentedRoute: (segments: RouteSegmentData[]) => void;
   clearRoute: () => void;
   setDestinationMarker: (coordinate: Coordinates | null) => void;
   setOccurrenceMarkers: (occurrences: Array<{id: string; location: Coordinates; crimeType: string; severity: string}>) => void;
@@ -677,7 +683,55 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       }
     }
     
-    function clearRoute() { if (routePolyline) { map.removeLayer(routePolyline); routePolyline = null; } }
+    // Array to store multiple route polylines for segmented routes
+    var routePolylines = [];
+    
+    // Draw route with multiple colored segments (traveled vs remaining)
+    // Requirements 12.1, 12.2, 12.3
+    function drawSegmentedRoute(segments) {
+      clearRoute();
+      if (!segments || !Array.isArray(segments) || segments.length === 0) {
+        return;
+      }
+      
+      segments.forEach(function(segment) {
+        if (!segment.coords || !Array.isArray(segment.coords) || segment.coords.length < 2) {
+          return;
+        }
+        
+        var latLngs = segment.coords.filter(function(c) { 
+          return c && typeof c.lat === 'number' && typeof c.lng === 'number' && 
+                 !isNaN(c.lat) && !isNaN(c.lng); 
+        }).map(function(c) { return [c.lat, c.lng]; });
+        
+        if (latLngs.length < 2) {
+          return;
+        }
+        
+        var polyline = L.polyline(latLngs, { 
+          color: segment.color || '#4285F4', 
+          weight: 6, 
+          opacity: 0.9,
+          lineJoin: 'round',
+          lineCap: 'round'
+        }).addTo(map);
+        
+        routePolylines.push(polyline);
+      });
+    }
+    
+    function clearRoute() { 
+      // Clear single polyline
+      if (routePolyline) { 
+        map.removeLayer(routePolyline); 
+        routePolyline = null; 
+      }
+      // Clear segmented polylines
+      routePolylines.forEach(function(p) {
+        map.removeLayer(p);
+      });
+      routePolylines = [];
+    }
     
     function animateToCoordinate(lat, lng, zoom) {
       if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
@@ -787,6 +841,17 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
         if (coordinates?.length > 0) {
           const coords = coordinates.filter(c => c?.latitude && c?.longitude).map(c => ({lat: c.latitude, lng: c.longitude}));
           if (coords.length > 0) injectJS(`drawRoute(${JSON.stringify(coords)})`);
+        }
+      },
+      drawSegmentedRoute: (segments: RouteSegmentData[]) => {
+        if (segments?.length > 0) {
+          const segmentData = segments.map(seg => ({
+            coords: seg.coordinates.filter(c => c?.latitude && c?.longitude).map(c => ({lat: c.latitude, lng: c.longitude})),
+            color: seg.color,
+          })).filter(seg => seg.coords.length >= 2);
+          if (segmentData.length > 0) {
+            injectJS(`drawSegmentedRoute(${JSON.stringify(segmentData)})`);
+          }
         }
       },
       clearRoute: () => injectJS('clearRoute()'),

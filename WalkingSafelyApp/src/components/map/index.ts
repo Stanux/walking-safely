@@ -3,7 +3,7 @@
  * Export all map-related components
  */
 
-export {MapView, type MapViewProps, type MapViewRef} from './MapView';
+export {MapView, type MapViewProps, type MapViewRef, type RouteSegmentData} from './MapView';
 export {
   RoutePolyline,
   type RoutePolylineProps,
