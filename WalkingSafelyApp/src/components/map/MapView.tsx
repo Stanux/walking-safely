@@ -364,8 +364,13 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       headingUpdateTimeout = setTimeout(function() {
         // Rotate the map so the heading direction points UP
         // Heading 0 = North, 90 = East, 180 = South, 270 = West
-        map.setBearing(currentHeading);
+        // IMPORTANT: Leaflet bearing is the opposite of heading
+        // To make heading point UP, we need to rotate the map by -heading (or 360-heading)
+        // This rotates the map so that the heading direction is at the top of the screen
+        var mapBearing = (360 - currentHeading) % 360;
+        map.setBearing(mapBearing);
         lastAppliedHeading = currentHeading;
+        console.log('[MapView] Applied rotation - heading:', currentHeading, 'mapBearing:', mapBearing);
       }, 100);
     }
     
