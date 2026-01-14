@@ -669,25 +669,45 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
           mapRef.current.setDestinationMarker(destination);
         }
 
-        if (userPosition) {
-          mapRef.current.animateToCoordinate(userPosition);
+        // Calculate initial heading based on route direction (first segment)
+        // This ensures the map points "forward" along the route from the start
+        if (routeCoordinates.length >= 2) {
+          // Use a point further along the route for more stable initial heading
+          const startPoint = routeCoordinates[0];
+          let targetIndex = Math.min(5, routeCoordinates.length - 1); // Look at least 5 points ahead
           
-          // Calculate initial heading based on route direction
-          if (routeCoordinates.length >= 2) {
-            const {heading} = findNextRoutePointAndHeading(userPosition);
-            if (heading > 0 && !isNaN(heading)) {
-              console.log('[NavigationScreen] Setting initial route heading:', heading);
-              setUserHeading(heading);
-              mapRef.current.setHeading(heading);
+          // Find a point at least 50m ahead for stable heading
+          let accumulatedDistance = 0;
+          for (let i = 0; i < routeCoordinates.length - 1; i++) {
+            accumulatedDistance += calculateDistance(routeCoordinates[i], routeCoordinates[i + 1]);
+            if (accumulatedDistance >= 50) {
+              targetIndex = i + 1;
+              break;
             }
           }
+          
+          const targetPoint = routeCoordinates[targetIndex];
+          const initialHeading = calculateBearing(
+            startPoint.latitude,
+            startPoint.longitude,
+            targetPoint.latitude,
+            targetPoint.longitude,
+          );
+          
+          console.log('[NavigationScreen] Setting initial route heading:', initialHeading, 'target index:', targetIndex);
+          setUserHeading(initialHeading);
+          mapRef.current.setHeading(initialHeading);
+        }
+
+        if (userPosition) {
+          mapRef.current.animateToCoordinate(userPosition);
         }
 
         mapRef.current.setNavigationMode(true);
         mapRef.current.setCompassMode(true);
       }
     }, 300);
-  }, [routeCoordinates, destination, userPosition, findNextRoutePointAndHeading]);
+  }, [routeCoordinates, destination, userPosition, calculateBearing]);
 
   /**
    * Handle center map on user
