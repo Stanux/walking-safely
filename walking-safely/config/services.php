@@ -47,7 +47,7 @@ return [
 
     'map_provider' => env('MAP_PROVIDER', 'nominatim'),
 
-    'map_fallback_order' => ['nominatim', 'google', 'here', 'mapbox'],
+    'map_fallback_order' => ['nominatim', 'here', 'google', 'mapbox'],
 
     'google_maps' => [
         'api_key' => env('GOOGLE_MAPS_API_KEY', ''),

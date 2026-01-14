@@ -26,10 +26,10 @@ import {useTheme} from '@/shared/theme/ThemeProvider';
 import {tokens} from '@/shared/theme/tokens';
 import {MapView, MapViewRef} from '@/components/map/MapView';
 import {RiskPointPopup} from '@/components/map/RiskPointPopup';
+import {HamburgerMenu} from '@/components/menu/HamburgerMenu';
 import {useMapStore} from '@/store/mapStore';
 import {useOccurrenceStore} from '@/store/occurrenceStore';
 import {useAuthStore} from '@/features/auth/store/authStore';
-import {logoutUseCase} from '@/features/auth/domain/useCases/logoutUseCase';
 import {Coordinates, MapBounds, Address} from '@/types/models';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -103,11 +103,36 @@ const FAB: React.FC<FABProps> = ({
 interface SearchResultItemProps {
   address: Address;
   onPress: (address: Address) => void;
+  searchQuery?: string;
 }
 
-const SearchResultItem: React.FC<SearchResultItemProps> = ({address, onPress}) => {
+const SearchResultItem: React.FC<SearchResultItemProps> = ({address, onPress, searchQuery}) => {
   const {theme} = useTheme();
   const isDark = theme === 'dark';
+
+  // Linha 1: Rua, Número
+  let streetDisplay = address.street || '';
+  let numberDisplay = address.number || '';
+  
+  // Se não tiver street separado, usa a primeira parte do formattedAddress
+  if (!streetDisplay && address.formattedAddress) {
+    const parts = address.formattedAddress.split(',');
+    streetDisplay = parts[0]?.trim() || '';
+  }
+  
+  // Tenta extrair número da query de pesquisa se não veio da API
+  if (!numberDisplay && searchQuery) {
+    const numberMatch = searchQuery.match(/,?\s*(\d+)/);
+    if (numberMatch) {
+      numberDisplay = numberMatch[1];
+    }
+  }
+  
+  const line1 = numberDisplay ? `${streetDisplay}, ${numberDisplay}` : streetDisplay;
+
+  // Linha 2: Bairro, Cidade, Estado, CEP
+  const line2Parts = [address.neighborhood, address.city, address.state, address.postalCode].filter(Boolean);
+  const line2 = line2Parts.join(', ');
 
   return (
     <TouchableOpacity
@@ -118,14 +143,26 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({address, onPress}) =
       onPress={() => onPress(address)}
       activeOpacity={0.7}>
       <Text style={styles.searchResultIcon}>📍</Text>
-      <Text
-        style={[
-          styles.searchResultText,
-          {color: isDark ? tokens.colors.text.primary.dark : tokens.colors.text.primary.light},
-        ]}
-        numberOfLines={2}>
-        {address.formattedAddress}
-      </Text>
+      <View style={styles.searchResultTextContainer}>
+        <Text
+          style={[
+            styles.searchResultTextPrimary,
+            {color: isDark ? tokens.colors.text.primary.dark : tokens.colors.text.primary.light},
+          ]}
+          numberOfLines={1}>
+          {line1}
+        </Text>
+        {line2 ? (
+          <Text
+            style={[
+              styles.searchResultTextSecondary,
+              {color: isDark ? tokens.colors.text.secondary.dark : tokens.colors.text.secondary.light},
+            ]}
+            numberOfLines={1}>
+            {line2}
+          </Text>
+        ) : null}
+      </View>
     </TouchableOpacity>
   );
 };
@@ -142,29 +179,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
 
   // Auth store
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const user = useAuthStore(state => state.user);
-
-  // Logout handler
-  const handleLogout = useCallback(async () => {
-    Alert.alert(
-      'Sair',
-      'Deseja realmente sair da sua conta?',
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {
-          text: 'Sair',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logoutUseCase();
-            } catch (error) {
-              console.warn('[MapScreen] Logout error:', error);
-            }
-          },
-        },
-      ]
-    );
-  }, []);
 
   // Map store
   const {
@@ -436,9 +450,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
             latitude: item.coordinates?.latitude,
             longitude: item.coordinates?.longitude,
           },
+          street: item.street,
+          number: item.number,
+          neighborhood: item.neighborhood,
           city: item.city,
           state: item.state,
           country: item.country,
+          postalCode: item.postal_code,
         }));
         
         console.log('[MapScreen] Geocoding results:', results);
@@ -497,9 +515,6 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
     };
   }, []);
 
-  // Get user's first name for greeting
-  const firstName = user?.name?.split(' ')[0] || '';
-
   // Debug: log occurrences being passed to map
   useEffect(() => {
     if (occurrences.length > 0) {
@@ -536,6 +551,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
           crimeType: occ.crimeType?.name || 'Ocorrência',
           severity: occ.severity || 'medium',
         }))}
+        heatmapEnabled={heatmapEnabled}
         onLongPress={handleMapLongPress}
         onOccurrencePress={handleOccurrencePress}
         onRegionChangeComplete={handleRegionChangeComplete}
@@ -543,30 +559,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
         style={styles.map}
       />
 
-      {/* Header with greeting and search */}
+      {/* Header with menu button */}
       <View style={styles.headerContainer}>
-        <View style={styles.greetingRow}>
-          {firstName && (
-            <Text
-              style={[
-                styles.greeting,
-                {color: isDark ? tokens.colors.text.primary.dark : tokens.colors.text.primary.light},
-              ]}>
-              Olá, {firstName}! 👋
-            </Text>
-          )}
-          <TouchableOpacity
-            style={[
-              styles.logoutButton,
-              {backgroundColor: isDark ? tokens.colors.surface.dark : tokens.colors.background.light},
-            ]}
-            onPress={handleLogout}
-            accessibilityLabel="Sair da conta">
-            <Text style={styles.logoutIcon}>🚪</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Search Bar */}
+        <HamburgerMenu />
+      </View>
+
+      {/* Search Bar - centered */}
+      <View style={styles.searchWrapper}>
         <View
           style={[
             styles.searchContainer,
@@ -578,13 +577,25 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
               styles.searchInput,
               {color: isDark ? tokens.colors.text.primary.dark : tokens.colors.text.primary.light},
             ]}
-            placeholder="Para onde você vai?"
+            placeholder="Qual seu próximo destino seguro?"
             placeholderTextColor={isDark ? tokens.colors.text.secondary.dark : tokens.colors.text.secondary.light}
             value={searchQuery}
             onChangeText={handleSearchChange}
             onFocus={() => searchQuery.length >= 3 && setShowSearchResults(true)}
           />
           {isSearching && <ActivityIndicator size="small" color={tokens.colors.primary[500]} />}
+          {searchQuery.length > 0 && !isSearching && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery('');
+                setSearchResults([]);
+                setShowSearchResults(false);
+              }}
+              style={styles.clearButton}
+              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+              <Text style={styles.clearButtonText}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Search Results */}
@@ -598,7 +609,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({navigation}) => {
               data={searchResults}
               keyExtractor={(item) => item.id}
               renderItem={({item}) => (
-                <SearchResultItem address={item} onPress={handleSelectAddress} />
+                <SearchResultItem address={item} onPress={handleSelectAddress} searchQuery={searchQuery} />
               )}
               keyboardShouldPersistTaps="handled"
               style={styles.searchResultsList}
@@ -724,36 +735,16 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     position: 'absolute',
-    top: 50,
+    top: 16,
     left: tokens.spacing.md,
-    right: tokens.spacing.md,
     zIndex: 1000,
   },
-  greeting: {
-    fontSize: tokens.typography.fontSize.lg,
-    fontWeight: '600',
-    marginBottom: tokens.spacing.sm,
-    textShadowColor: 'rgba(255,255,255,0.8)',
-    textShadowOffset: {width: 0, height: 1},
-    textShadowRadius: 2,
-    flex: 1,
-  },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: tokens.spacing.sm,
-  },
-  logoutButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...tokens.shadow.sm,
-  },
-  logoutIcon: {
-    fontSize: 18,
+  searchWrapper: {
+    position: 'absolute',
+    top: 80,
+    left: tokens.spacing.md,
+    right: tokens.spacing.md,
+    zIndex: 999,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -793,9 +784,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: tokens.spacing.sm,
   },
+  searchResultTextContainer: {
+    flex: 1,
+  },
+  searchResultTextPrimary: {
+    fontSize: tokens.typography.fontSize.sm,
+    fontWeight: '500',
+  },
+  searchResultTextSecondary: {
+    fontSize: tokens.typography.fontSize.xs,
+    marginTop: 2,
+  },
   searchResultText: {
     flex: 1,
     fontSize: tokens.typography.fontSize.sm,
+  },
+  clearButton: {
+    padding: tokens.spacing.xs,
+    marginLeft: tokens.spacing.xs,
+  },
+  clearButtonText: {
+    fontSize: 16,
+    color: tokens.colors.text.secondary.light,
   },
   fabContainer: {
     position: 'absolute',

@@ -22,6 +22,8 @@ import {
   Platform,
   ScrollView,
   SafeAreaView,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../AuthNavigator';
@@ -32,6 +34,9 @@ import { useTheme } from '@/shared/theme/ThemeProvider';
 import { validateLoginForm } from '@/features/auth/domain/validators/authValidators';
 import { loginUseCase } from '@/features/auth/domain/useCases/loginUseCase';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { Images } from '@/assets';
+
+const { width } = Dimensions.get('window');
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -182,6 +187,15 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.container}>
+            {/* Logo */}
+            <View style={styles.logoContainer}>
+              <Image
+                source={Images.logo}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+
             {/* Header */}
             <View style={styles.header}>
               <Text
@@ -349,6 +363,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.xl,
     justifyContent: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xl,
+  },
+  logo: {
+    width: width * 0.35,
+    height: width * 0.35,
   },
   header: {
     marginBottom: tokens.spacing.xl,

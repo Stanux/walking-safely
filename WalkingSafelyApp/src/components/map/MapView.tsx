@@ -45,6 +45,7 @@ export interface MapViewProps {
     crimeType: string;
     severity: string;
   }>;
+  heatmapEnabled?: boolean;
   tapToSelectEnabled?: boolean;
   onMapTap?: (coordinates: Coordinates) => void;
   onLongPress?: (coordinates: Coordinates) => void;
@@ -73,6 +74,7 @@ export interface MapViewRef {
   setNavigationMode: (enabled: boolean) => void;
   setHeading: (heading: number) => void;
   setCompassMode: (enabled: boolean) => void;
+  setHeatmapEnabled: (enabled: boolean) => void;
 }
 
 const DEFAULT_ZOOM = 15;
@@ -90,6 +92,7 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -104,25 +107,27 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
     .user-marker-navigation {
-      width: 40px !important;
-      height: 40px !important;
-      background: #FF4444 !important;
-      border: 4px solid white !important;
-      border-radius: 50% !important;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
+      width: 0 !important;
+      height: 0 !important;
+      border-left: 18px solid transparent !important;
+      border-right: 18px solid transparent !important;
+      border-bottom: 40px solid #4285F4 !important;
+      background: transparent !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
       position: relative !important;
       z-index: 1000 !important;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)) !important;
     }
     .user-marker-navigation::after {
-      content: '●' !important;
+      content: '' !important;
       position: absolute !important;
-      top: 50% !important;
-      left: 50% !important;
-      transform: translate(-50%, -50%) !important;
-      color: white !important;
-      font-size: 24px !important;
-      font-weight: bold !important;
-      line-height: 1 !important;
+      top: 12px !important;
+      left: -8px !important;
+      width: 16px !important;
+      height: 16px !important;
+      background: white !important;
+      border-radius: 50% !important;
     }
     .destination-marker {
       width: 30px; height: 30px;
@@ -219,6 +224,9 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
     
     var userMarker = null, destinationMarker = null, selectedMarker = null;
     var routePolyline = null, occurrenceMarkers = [];
+    var heatmapLayer = null;
+    var heatmapEnabled = false;
+    var heatmapData = [];
     var hasCenteredOnUser = ${hasValidInitial};
     
     // Update compass icon rotation when map bearing changes
@@ -244,7 +252,10 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       isCompassMode = !isCompassMode;
       if (isCompassMode) {
         compassButton.classList.add('active');
-        setMapRotation(currentHeading);
+        // Only apply rotation if we have a valid heading
+        if (currentHeading > 0) {
+          setMapRotation(currentHeading);
+        }
       } else {
         compassButton.classList.remove('active');
         // Reset map to north
@@ -261,7 +272,10 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       isCompassMode = enabled;
       if (enabled) {
         compassButton.classList.add('active');
-        setMapRotation(currentHeading);
+        // Only apply rotation if we have a valid heading
+        if (currentHeading > 0) {
+          setMapRotation(currentHeading);
+        }
       } else if (!isNavigationMode) {
         compassButton.classList.remove('active');
         map.setBearing(0);
@@ -269,10 +283,18 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
     }
     
     function setNavigationMode(enabled) {
+      var wasNavigationMode = isNavigationMode;
       isNavigationMode = enabled;
       if (enabled) {
         compassButton.classList.add('active');
-        map.setZoom(17);
+        // Only set zoom when ENTERING navigation mode, not on every call
+        if (!wasNavigationMode) {
+          map.setZoom(17);
+          // Reset map bearing to north when entering navigation mode
+          // The heading will be applied later when we get a valid GPS heading
+          map.setBearing(0);
+          lastAppliedHeading = 0;
+        }
         // Update user marker to show navigation marker
         if (userMarker) {
           var pos = userMarker.getLatLng();
@@ -284,8 +306,9 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
           });
           userMarker.setIcon(icon);
         }
-        // Apply current heading rotation
-        if (currentHeading) {
+        // Only apply heading rotation if we have a valid heading (> 0)
+        // This prevents the map from rotating incorrectly on initial load
+        if (currentHeading > 0) {
           setMapRotation(currentHeading);
         }
         // Ensure compass mode is also enabled
@@ -310,6 +333,9 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
     
     // Rotate map based on heading (bearing) - like Google Maps navigation
     // The map rotates so that the direction you're heading is always UP on screen
+    var lastAppliedHeading = 0;
+    var headingUpdateTimeout = null;
+    
     function setMapRotation(heading) {
       currentHeading = heading || 0;
       
@@ -317,21 +343,30 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
         return;
       }
       
-      // Rotate the map so the heading direction points UP
-      // If heading is 90 (east), we rotate map by -90 so east points up
-      map.setBearing(-currentHeading);
-      
-      // Update user marker arrow to always point UP (forward direction)
-      if (userMarker && isNavigationMode) {
-        var markerElement = userMarker.getElement();
-        if (markerElement) {
-          var arrowDiv = markerElement.querySelector('.user-marker-navigation');
-          if (arrowDiv) {
-            // Arrow should always point UP on screen (no rotation needed since map rotates)
-            arrowDiv.style.transform = 'rotate(0deg)';
-          }
-        }
+      // Don't rotate if heading is 0 or invalid - keep map oriented north
+      // Heading 0 typically means "no valid heading" from GPS
+      if (currentHeading === 0 || isNaN(currentHeading)) {
+        return;
       }
+      
+      // Only update if heading changed significantly (more than 5 degrees)
+      // This prevents jittery rotation from small GPS heading variations
+      var headingDiff = Math.abs(currentHeading - lastAppliedHeading);
+      if (headingDiff < 5 && headingDiff !== 0) {
+        return;
+      }
+      
+      // Debounce heading updates to prevent rapid rotation changes
+      if (headingUpdateTimeout) {
+        clearTimeout(headingUpdateTimeout);
+      }
+      
+      headingUpdateTimeout = setTimeout(function() {
+        // Rotate the map so the heading direction points UP
+        // Heading 0 = North, 90 = East, 180 = South, 270 = West
+        map.setBearing(currentHeading);
+        lastAppliedHeading = currentHeading;
+      }, 100);
     }
     
     // Long press detection variables
@@ -456,33 +491,46 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       
       // Choose marker style based on navigation mode
       var markerClass = isNavigationMode ? 'user-marker-navigation' : 'user-marker';
-      var markerSize = isNavigationMode ? [40, 40] : [20, 20];
-      var markerAnchor = isNavigationMode ? [20, 20] : [10, 10];
+      var markerSize = isNavigationMode ? [36, 40] : [20, 20];
+      var markerAnchor = isNavigationMode ? [18, 40] : [10, 10];
       
-      // Create marker HTML - simplified for better visibility
+      // Create marker HTML - arrow for navigation, circle for normal
       var markerHtml = '<div class="' + markerClass + '"></div>';
       
       if (userMarker) { 
         userMarker.setLatLng([lat, lng]);
-        var icon = L.divIcon({ className: '', html: markerHtml, iconSize: markerSize, iconAnchor: markerAnchor });
-        userMarker.setIcon(icon);
+        // Only update icon if mode changed
+        if (userMarker._navigationMode !== isNavigationMode) {
+          var icon = L.divIcon({ className: '', html: markerHtml, iconSize: markerSize, iconAnchor: markerAnchor });
+          userMarker.setIcon(icon);
+          userMarker._navigationMode = isNavigationMode;
+        }
       } else {
         var icon = L.divIcon({ className: '', html: markerHtml, iconSize: markerSize, iconAnchor: markerAnchor });
         userMarker = L.marker([lat, lng], { icon: icon }).addTo(map);
+        userMarker._navigationMode = isNavigationMode;
       }
       
-      // Update heading and rotate map
-      if (heading !== undefined && heading !== null && !isNaN(heading)) {
+      // Update heading and rotate map - only if heading is valid (> 0)
+      // Heading 0 means "no valid heading" so we keep the map oriented north
+      if (heading !== undefined && heading !== null && !isNaN(heading) && heading > 0) {
         currentHeading = heading;
         if (isCompassMode || isNavigationMode) {
           setMapRotation(heading);
         }
       }
       
-      if (!hasCenteredOnUser || centerMap) { 
+      // Center map on user - only set zoom on FIRST center, then just pan without zoom changes
+      if (!hasCenteredOnUser) { 
         var zoomLevel = isNavigationMode ? 17 : 15;
         map.setView([lat, lng], zoomLevel, { animate: true }); 
         hasCenteredOnUser = true; 
+      } else if (centerMap) {
+        // Explicit center request - pan without changing zoom
+        map.panTo([lat, lng], { animate: true, duration: 0.3 });
+      } else if (isNavigationMode) {
+        // During navigation, smoothly pan to follow user without changing zoom
+        map.panTo([lat, lng], { animate: true, duration: 0.5 });
       }
     }
     
@@ -498,8 +546,21 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       occurrenceMarkers.forEach(function(m) { map.removeLayer(m); });
       occurrenceMarkers = [];
       if (!occs || !Array.isArray(occs)) { return; }
+      
+      // Store data for heatmap
+      heatmapData = [];
+      
       occs.forEach(function(occ) {
         if (!occ.lat || !occ.lng || isNaN(occ.lat) || isNaN(occ.lng)) { return; }
+        
+        // Add to heatmap data with weight based on severity
+        var weight = 0.5;
+        if (occ.severity === 'critical') weight = 1.0;
+        else if (occ.severity === 'high') weight = 0.8;
+        else if (occ.severity === 'medium') weight = 0.5;
+        else if (occ.severity === 'low') weight = 0.3;
+        heatmapData.push([occ.lat, occ.lng, weight]);
+        
         var iconHtml = '<div class="occurrence-marker ' + (occ.severity || 'medium') + '">&#x26A0;</div>';
         var icon = L.divIcon({ className: '', html: iconHtml, iconSize: [32, 32], iconAnchor: [16, 16] });
         var marker = L.marker([occ.lat, occ.lng], { icon: icon }).addTo(map);
@@ -518,6 +579,69 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
         });
         occurrenceMarkers.push(marker);
       });
+      
+      // Update heatmap if enabled
+      if (heatmapEnabled) {
+        updateHeatmap();
+      }
+    }
+    
+    // Heatmap functions
+    function setHeatmapEnabled(enabled) {
+      heatmapEnabled = enabled;
+      if (enabled) {
+        updateHeatmap();
+      } else {
+        if (heatmapLayer) {
+          map.removeLayer(heatmapLayer);
+          heatmapLayer = null;
+        }
+      }
+    }
+    
+    function updateHeatmap() {
+      if (heatmapLayer) {
+        map.removeLayer(heatmapLayer);
+        heatmapLayer = null;
+      }
+      
+      if (!heatmapEnabled || heatmapData.length === 0) {
+        return;
+      }
+      
+      // Create heatmap layer with custom gradient (green to red)
+      heatmapLayer = L.heatLayer(heatmapData, {
+        radius: 30,
+        blur: 20,
+        maxZoom: 18,
+        max: 1.0,
+        minOpacity: 0.35,
+        gradient: {
+          0.0: '#22c55e',  // Green - safe
+          0.25: '#84cc16', // Lime
+          0.4: '#eab308',  // Yellow - caution
+          0.55: '#f97316', // Orange - warning
+          0.7: '#ef4444',  // Red - danger
+          1.0: '#dc2626'   // Dark red - high danger
+        }
+      }).addTo(map);
+      
+      // Bring markers to front so they're visible over heatmap
+      occurrenceMarkers.forEach(function(m) { m.bringToFront(); });
+      if (userMarker) userMarker.bringToFront();
+    }
+    
+    function setHeatmapData(data) {
+      if (!data || !Array.isArray(data)) {
+        heatmapData = [];
+      } else {
+        heatmapData = data.map(function(point) {
+          return [point.lat, point.lng, point.weight || 0.5];
+        });
+      }
+      if (heatmapEnabled) {
+        updateHeatmap();
+      }
     }
     
     function drawRoute(coords) {
@@ -595,6 +719,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       destination,
       routeCoordinates,
       occurrences,
+      heatmapEnabled = false,
       tapToSelectEnabled = false,
       onMapTap,
       onLongPress,
@@ -685,6 +810,7 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       setNavigationMode: (enabled: boolean) => injectJS(`setNavigationMode(${enabled})`),
       setHeading: (heading: number) => injectJS(`setMapRotation(${heading})`),
       setCompassMode: (enabled: boolean) => injectJS(`setCompassMode(${enabled})`),
+      setHeatmapEnabled: (enabled: boolean) => injectJS(`setHeatmapEnabled(${enabled})`),
     }));
 
     useEffect(() => {
@@ -748,19 +874,30 @@ export const MapView = forwardRef<MapViewRef, MapViewProps>(
       }
     }, [isMapReady, compassMode, injectJS]);
 
-    // Update map rotation based on user heading
+    // Sync heatmap enabled from prop
     useEffect(() => {
-      if (isMapReady && userHeading !== undefined && (isNavigating || compassMode)) {
+      if (isMapReady) {
+        injectJS(`setHeatmapEnabled(${heatmapEnabled})`);
+      }
+    }, [isMapReady, heatmapEnabled, injectJS]);
+
+    // Update map rotation based on user heading
+    // Only apply rotation when we have a valid heading (> 0)
+    useEffect(() => {
+      if (isMapReady && userHeading > 0 && (isNavigating || compassMode)) {
         injectJS(`setMapRotation(${userHeading})`);
       }
     }, [isMapReady, userHeading, isNavigating, compassMode, injectJS]);
 
+    // Follow user is handled by updateUserPosition in the WebView
+    // This effect is only for initial centering when followUser changes
     useEffect(() => {
-      if (isMapReady && followUser && userPosition?.latitude && userPosition?.longitude) {
-        const zoom = isNavigating ? 17 : DEFAULT_ZOOM;
-        injectJS(`animateToCoordinate(${userPosition.latitude}, ${userPosition.longitude}, ${zoom})`);
+      if (isMapReady && followUser && userPosition?.latitude && userPosition?.longitude && !isNavigating) {
+        injectJS(`animateToCoordinate(${userPosition.latitude}, ${userPosition.longitude}, ${DEFAULT_ZOOM})`);
       }
-    }, [isMapReady, followUser, userPosition, isNavigating, injectJS]);
+    // Only trigger on followUser change, not on every position update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isMapReady, followUser, isNavigating, injectJS]);
 
     useEffect(() => {
       if (isMapReady && destination?.latitude && destination?.longitude) {

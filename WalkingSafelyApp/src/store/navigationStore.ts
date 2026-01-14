@@ -47,6 +47,10 @@ interface NavigationState {
   wasRecalculated: boolean;
   /** Last recalculation timestamp */
   lastRecalculationTime: number | null;
+  /** Flag indicating current instruction should be narrated */
+  shouldNarrate: boolean;
+  /** Index of last narrated instruction to avoid repeating */
+  lastNarratedIndex: number;
 }
 
 /**
@@ -68,6 +72,8 @@ interface NavigationActions {
   clearRecalculationFlag: () => void;
   /** Check if user has deviated from route */
   checkDeviation: () => { deviated: boolean; distance: number };
+  /** Mark current instruction as narrated */
+  markAsNarrated: () => void;
 }
 
 /**
@@ -82,15 +88,35 @@ type NavigationStore = NavigationState & NavigationActions;
 const RECALCULATION_COOLDOWN = 5000; // 5 seconds
 
 /**
+ * Distance threshold for narrating next instruction (meters)
+ * Requirement 14.4: Narrate instructions with adequate advance notice
+ */
+export const INSTRUCTION_NARRATE_THRESHOLD = 30;
+
+/**
  * Distance threshold for advancing to next instruction (meters)
  * Requirement 13.3: Advance to next instruction when movement is completed
+ * User reaches the instruction point (within 10m)
  */
-export const INSTRUCTION_ADVANCE_THRESHOLD = 30;
+export const INSTRUCTION_ADVANCE_THRESHOLD = 10;
 
 /**
  * Traffic check interval (milliseconds)
  */
 const TRAFFIC_CHECK_INTERVAL = 60000; // 60 seconds
+
+/**
+ * Determine if instruction should be narrated based on distance
+ * Requirement 14.4: Narrate instructions with adequate advance notice (30m)
+ *
+ * @param distanceToInstruction Distance from current position to instruction point (meters)
+ * @returns Whether to narrate the instruction
+ */
+export function shouldNarrateInstruction(
+  distanceToInstruction: number
+): boolean {
+  return distanceToInstruction <= INSTRUCTION_NARRATE_THRESHOLD && distanceToInstruction > INSTRUCTION_ADVANCE_THRESHOLD;
+}
 
 /**
  * Determine if instruction should advance based on distance
@@ -106,7 +132,7 @@ export function shouldAdvanceInstruction(
   currentIndex: number,
   totalInstructions: number
 ): boolean {
-  // Advance if within threshold distance and not at last instruction
+  // Advance if within threshold distance (10m - at the point) and not at last instruction
   return (
     distanceToInstruction < INSTRUCTION_ADVANCE_THRESHOLD &&
     currentIndex < totalInstructions - 1
@@ -171,6 +197,8 @@ const initialState: NavigationState = {
   destination: null,
   wasRecalculated: false,
   lastRecalculationTime: null,
+  shouldNarrate: false,
+  lastNarratedIndex: -1,
 };
 
 /**
@@ -209,6 +237,8 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
       destination: routeDestination,
       wasRecalculated: false,
       lastRecalculationTime: null,
+      shouldNarrate: false,
+      lastNarratedIndex: -1,
     });
   },
 
@@ -223,9 +253,10 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
    * Update current position and speed
    * Requirement 6.3: Update position in real-time
    * Requirement 13.3: Advance to next instruction when movement is completed
+   * Requirement 14.4: Narrate instructions with adequate advance notice (30m)
    */
   updatePosition: (position: Coordinates, speed?: number) => {
-    const {route, currentInstructionIndex} = get();
+    const {route, currentInstructionIndex, lastNarratedIndex} = get();
 
     if (!route) {
       return;
@@ -276,8 +307,17 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
         currentInstruction.coordinates,
       );
 
+      // Check if we should narrate this instruction (at 30m, not yet narrated)
+      // Requirement 14.4: Narrate instructions with adequate advance notice
+      const shouldNarrateNow = shouldNarrateInstruction(distanceToInstruction) && 
+                               currentInstructionIndex !== lastNarratedIndex;
+
       if (newInstructionIndex !== currentInstructionIndex) {
         console.log('[NavigationStore] Advancing to next instruction:', newInstructionIndex);
+      }
+      
+      if (shouldNarrateNow) {
+        console.log('[NavigationStore] Should narrate instruction at distance:', distanceToInstruction);
       }
       
       // Update distance to current instruction for voice prompts
@@ -285,6 +325,11 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
         ...currentInstruction,
         distance: Math.round(distanceToInstruction),
       };
+
+      // When advancing to next instruction, reset narration flag for the new instruction
+      const newLastNarratedIndex = newInstructionIndex !== currentInstructionIndex 
+        ? lastNarratedIndex  // Keep the same, new instruction hasn't been narrated yet
+        : lastNarratedIndex;
 
       set({
         currentPosition: position,
@@ -295,6 +340,8 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
         currentInstruction: newInstructionIndex === currentInstructionIndex 
           ? updatedInstruction 
           : route.instructions[newInstructionIndex] || null,
+        shouldNarrate: shouldNarrateNow,
+        lastNarratedIndex: newLastNarratedIndex,
       });
     } else {
       // No current instruction, just update position
@@ -303,6 +350,7 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
         speed: speed ?? get().speed,
         remainingDistance,
         remainingDuration,
+        shouldNarrate: false,
       });
     }
   },
@@ -550,6 +598,18 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
       deviated: distance > DEVIATION_THRESHOLD,
       distance,
     };
+  },
+
+  /**
+   * Mark current instruction as narrated
+   * Prevents repeating the same voice instruction
+   */
+  markAsNarrated: () => {
+    const {currentInstructionIndex} = get();
+    set({
+      shouldNarrate: false,
+      lastNarratedIndex: currentInstructionIndex,
+    });
   },
 }));
 

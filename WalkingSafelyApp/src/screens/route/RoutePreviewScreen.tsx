@@ -236,7 +236,9 @@ export const RoutePreviewScreen: React.FC<RoutePreviewScreenProps> = ({
         ]}
         onPress={handleBack}
         accessibilityLabel="Voltar">
-        <Text style={styles.backIcon}>←</Text>
+        <View style={styles.backIconContainer}>
+          <View style={[styles.backArrow, {borderColor: isDark ? '#fff' : '#333'}]} />
+        </View>
       </TouchableOpacity>
 
       {/* Bottom panel */}
@@ -394,13 +396,15 @@ export const RoutePreviewScreen: React.FC<RoutePreviewScreenProps> = ({
               <TouchableOpacity
                 style={styles.instructionsButton}
                 onPress={() => setShowInstructions(true)}>
-                <Text style={styles.instructionsButtonText}>📋 Ver Instruções</Text>
+                <Text style={styles.buttonIcon}>📋</Text>
+                <Text style={styles.instructionsButtonText}>Instruções</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.startButton}
                 onPress={handleStartNavigation}>
-                <Text style={styles.startButtonText}>Iniciar Navegação</Text>
+                <Text style={styles.buttonIcon}>▶️</Text>
+                <Text style={styles.startButtonText}>Iniciar</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -486,7 +490,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 50,
+    top: 16,
     left: tokens.spacing.md,
     width: 44,
     height: 44,
@@ -495,8 +499,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...tokens.shadow.md,
   },
-  backIcon: {
-    fontSize: 24,
+  backIconContainer: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backArrow: {
+    width: 12,
+    height: 12,
+    borderLeftWidth: 3,
+    borderBottomWidth: 3,
+    transform: [{rotate: '45deg'}],
+    marginLeft: 4,
   },
   bottomPanel: {
     borderTopLeftRadius: tokens.borderRadius.xl,
@@ -594,11 +609,14 @@ const styles = StyleSheet.create({
   },
   instructionsButton: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: tokens.spacing.md,
     borderRadius: tokens.borderRadius.md,
     borderWidth: 2,
     borderColor: tokens.colors.primary[500],
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.spacing.xs,
   },
   instructionsButtonText: {
     color: tokens.colors.primary[500],
@@ -606,16 +624,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   startButton: {
-    flex: 2,
+    flex: 1,
+    flexDirection: 'row',
     paddingVertical: tokens.spacing.md,
     borderRadius: tokens.borderRadius.md,
     backgroundColor: tokens.colors.primary[500],
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.spacing.xs,
   },
   startButtonText: {
     color: '#FFFFFF',
     fontSize: tokens.typography.fontSize.md,
     fontWeight: '600',
+  },
+  buttonIcon: {
+    fontSize: 16,
   },
   modalOverlay: {
     flex: 1,

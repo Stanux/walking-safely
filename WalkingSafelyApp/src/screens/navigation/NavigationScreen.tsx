@@ -13,7 +13,10 @@ import {
   SafeAreaView,
   StatusBar,
   Modal as RNModal,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
 import {useTranslation} from 'react-i18next';
 import {colors, getRiskColor} from '../../theme/colors';
 import {
@@ -33,6 +36,7 @@ import {useVoiceNavigation} from '../../hooks/useVoiceNavigation';
 import {RISK_WARNING_THRESHOLD} from '../../utils/constants';
 import type {ActiveNavigationScreenProps} from '../../types/navigation';
 import type {Coordinates, Occurrence} from '../../types/models';
+import {calculateDistance} from '../../utils/geo';
 
 /**
  * Format duration from seconds to human readable string
@@ -224,14 +228,16 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
     speed,
     isRecalculating,
     wasRecalculated,
+    shouldNarrate,
     startSession,
     endSession,
     updatePosition,
     checkForRecalculation,
     clearRecalculationFlag,
+    markAsNarrated,
   } = useNavigationStore();
 
-  const {stopNavigation, currentPosition} = useMapStore();
+  const {stopNavigation, currentPosition, setCurrentPosition} = useMapStore();
 
   // Voice navigation hook
   // Requirement 15.3: Narrate risk alert when voice is active
@@ -242,6 +248,7 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
     speakRiskAlert,
     speakRecalculating,
     speakInstruction,
+    speakManeuver,
     isInitialized: voiceInitialized,
   } = useVoiceNavigation({initialEnabled: true});
 
@@ -293,6 +300,7 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   }, [showExitConfirm]);
   const [isMapReady, setIsMapReady] = useState(false);
   const [_traveledPath, setTraveledPath] = useState<Coordinates[]>([]);
+  const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
 
   // Refs
   const isInitializedRef = useRef(false);
@@ -327,6 +335,81 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   );
 
   /**
+   * Find the next route point to navigate to and calculate heading
+   * This makes the map always show the route direction "up"
+   */
+  const findNextRoutePointAndHeading = useCallback(
+    (position: Coordinates): {nextIndex: number; heading: number} => {
+      if (routeCoordinates.length < 2) {
+        return {nextIndex: 0, heading: 0};
+      }
+
+      // Find the closest point on the route to current position
+      let closestIndex = currentRouteIndex;
+      let closestDistance = Infinity;
+
+      // Search from current index forward (don't go backwards on the route)
+      // Look ahead up to 20 points to find the closest one
+      const searchEnd = Math.min(currentRouteIndex + 20, routeCoordinates.length);
+      
+      for (let i = currentRouteIndex; i < searchEnd; i++) {
+        const point = routeCoordinates[i];
+        const dist = calculateDistance(position, point);
+        
+        if (dist < closestDistance) {
+          closestDistance = dist;
+          closestIndex = i;
+        }
+      }
+
+      // The next point to navigate to is the one after the closest
+      // But we need at least 2 points ahead to calculate a meaningful heading
+      let nextIndex = closestIndex;
+      
+      // If we're very close to the current point (< 15m), move to the next one
+      if (closestDistance < 15 && closestIndex < routeCoordinates.length - 1) {
+        nextIndex = closestIndex + 1;
+      }
+
+      // Find a point far enough ahead to calculate a stable heading
+      // Use a point at least 30m ahead, or the next significant turn
+      let targetIndex = nextIndex;
+      let accumulatedDistance = 0;
+      
+      for (let i = nextIndex; i < routeCoordinates.length - 1; i++) {
+        accumulatedDistance += calculateDistance(routeCoordinates[i], routeCoordinates[i + 1]);
+        targetIndex = i + 1;
+        
+        // Stop when we've accumulated at least 50m of distance
+        if (accumulatedDistance >= 50) {
+          break;
+        }
+      }
+
+      // Calculate bearing from current position to the target point
+      const targetPoint = routeCoordinates[targetIndex];
+      const heading = calculateBearing(
+        position.latitude,
+        position.longitude,
+        targetPoint.latitude,
+        targetPoint.longitude,
+      );
+
+      console.log('[NavigationScreen] Route heading calculation:', {
+        currentIndex: currentRouteIndex,
+        closestIndex,
+        nextIndex,
+        targetIndex,
+        closestDistance: closestDistance.toFixed(1),
+        heading: heading.toFixed(1),
+      });
+
+      return {nextIndex, heading};
+    },
+    [routeCoordinates, currentRouteIndex, calculateBearing],
+  );
+
+  /**
    * Initialize navigation session - runs only once
    * Requirement 11.1: Start Navigation_Mode when user clicks start
    */
@@ -349,6 +432,80 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   }, []);
 
   /**
+   * GPS Watch Position - Real-time location and heading tracking
+   * Requirement 11.2: Indicate user location in real-time
+   * Requirement 11.3: Align direction of movement to top of screen
+   */
+  useEffect(() => {
+    let watchId: number | null = null;
+
+    const startWatching = async () => {
+      // Request permission on Android
+      if (Platform.OS === 'android') {
+        try {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          );
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            console.warn('[NavigationScreen] Location permission denied');
+            return;
+          }
+        } catch (err) {
+          console.warn('[NavigationScreen] Permission error:', err);
+          return;
+        }
+      }
+
+      // Start watching position with high accuracy for navigation
+      watchId = Geolocation.watchPosition(
+        (position) => {
+          const {latitude, longitude, speed} = position.coords;
+          
+          console.log('[NavigationScreen] GPS Update - lat:', latitude.toFixed(6), 
+            'lng:', longitude.toFixed(6), 
+            'speed:', speed);
+
+          // Update position in map store
+          setCurrentPosition({latitude, longitude});
+
+          // Note: Heading is now calculated based on route direction, not GPS heading
+          // This makes the map always show the route "forward" at the top
+
+          // Update speed in navigation store
+          if (speed !== null && speed >= 0) {
+            // Convert m/s to km/h
+            const speedKmh = speed * 3.6;
+            updatePosition({latitude, longitude}, speedKmh);
+          } else {
+            updatePosition({latitude, longitude});
+          }
+        },
+        (error) => {
+          console.warn('[NavigationScreen] GPS Watch error:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          distanceFilter: 5, // Update every 5 meters
+          interval: 1000, // Update every 1 second (Android)
+          fastestInterval: 500, // Fastest update interval (Android)
+        }
+      );
+
+      console.log('[NavigationScreen] GPS Watch started, watchId:', watchId);
+    };
+
+    startWatching();
+
+    // Cleanup on unmount
+    return () => {
+      if (watchId !== null) {
+        console.log('[NavigationScreen] Stopping GPS watch');
+        Geolocation.clearWatch(watchId);
+      }
+    };
+  }, [setCurrentPosition, updatePosition]);
+
+  /**
    * Speak first instruction when navigation starts
    * Requirement 14.1: Narrate navigation instructions
    */
@@ -358,6 +515,7 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       const timer = setTimeout(() => {
         console.log('[NavigationScreen] Speaking first instruction:', currentInstruction.text);
         speakInstruction(currentInstruction, currentInstruction.distance);
+        markAsNarrated();
       }, 1000);
       
       return () => clearTimeout(timer);
@@ -365,6 +523,22 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   // Only run once when voice is initialized and we have the first instruction
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceInitialized, isMapReady]);
+
+  /**
+   * Speak instruction when approaching (30m threshold)
+   * Requirement 14.4: Narrate instructions with adequate advance notice
+   */
+  useEffect(() => {
+    if (shouldNarrate && voiceEnabled && voiceInitialized && currentInstruction) {
+      console.log('[NavigationScreen] Narrating instruction at 30m:', currentInstruction.text);
+      speakManeuver(
+        currentInstruction.maneuver,
+        currentInstruction.distance,
+        currentInstruction.text
+      );
+      markAsNarrated();
+    }
+  }, [shouldNarrate, voiceEnabled, voiceInitialized, currentInstruction, speakManeuver, markAsNarrated]);
 
   /**
    * Handle route recalculation notification
@@ -393,8 +567,9 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   }, [wasRecalculated, voiceEnabled, voiceInitialized, speakRecalculating, clearRecalculationFlag, route, isMapReady]);
 
   /**
-   * Update position tracking
+   * Update position tracking and calculate heading based on route direction
    * Requirement 11.2: Indicate user location in real-time
+   * Requirement 11.3: Align direction of movement to top of screen (route direction)
    * Requirement 16.1, 16.2: Check for route deviation and recalculate
    */
   useEffect(() => {
@@ -418,30 +593,25 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       return newPath;
     });
 
-    // Update position in navigation store
-    updatePosition(currentPosition);
-
     // Check proximity to risk points
     // Requirements 15.1, 15.4: Emit Risk_Alert when approaching Risk_Point
     if (routeOccurrences.length > 0) {
       checkProximity(currentPosition, routeOccurrences);
     }
 
-    // Update heading based on movement
-    if (lastPositionRef.current) {
-      const newHeading = calculateBearing(
-        lastPositionRef.current.latitude,
-        lastPositionRef.current.longitude,
-        currentPosition.latitude,
-        currentPosition.longitude,
-      );
+    // Calculate heading based on route direction (next point on route)
+    // This makes the map always show the route "forward" direction at the top
+    if (routeCoordinates.length >= 2) {
+      const {nextIndex, heading} = findNextRoutePointAndHeading(currentPosition);
       
-      if (!isNaN(newHeading)) {
-        const headingDiff = Math.abs(newHeading - userHeading);
-        const normalizedDiff = Math.min(headingDiff, 360 - headingDiff);
-        if (normalizedDiff > 10) {
-          setUserHeading(newHeading);
-        }
+      // Update current route index for tracking progress
+      if (nextIndex > currentRouteIndex) {
+        setCurrentRouteIndex(nextIndex);
+      }
+      
+      // Update heading if we got a valid one
+      if (heading > 0 && !isNaN(heading)) {
+        setUserHeading(heading);
       }
     }
 
@@ -449,7 +619,7 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       latitude: currentPosition.latitude,
       longitude: currentPosition.longitude,
     };
-  }, [currentPosition, checkProximity, routeOccurrences, calculateBearing, userHeading, updatePosition]);
+  }, [currentPosition, checkProximity, routeOccurrences, routeCoordinates, findNextRoutePointAndHeading, currentRouteIndex]);
 
   /**
    * Check for route deviation periodically
@@ -472,7 +642,9 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
     if (currentPosition && mapRef.current && isMapReady) {
       mapRef.current.animateToCoordinate(currentPosition);
 
-      if (userHeading !== 0) {
+      // Only set heading if we have a valid non-zero heading
+      // This prevents the map from rotating incorrectly
+      if (userHeading > 0) {
         mapRef.current.setHeading(userHeading);
       }
 
@@ -499,17 +671,23 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
 
         if (userPosition) {
           mapRef.current.animateToCoordinate(userPosition);
+          
+          // Calculate initial heading based on route direction
+          if (routeCoordinates.length >= 2) {
+            const {heading} = findNextRoutePointAndHeading(userPosition);
+            if (heading > 0 && !isNaN(heading)) {
+              console.log('[NavigationScreen] Setting initial route heading:', heading);
+              setUserHeading(heading);
+              mapRef.current.setHeading(heading);
+            }
+          }
         }
 
         mapRef.current.setNavigationMode(true);
         mapRef.current.setCompassMode(true);
-
-        if (userHeading !== 0) {
-          mapRef.current.setHeading(userHeading);
-        }
       }
     }, 300);
-  }, [routeCoordinates, destination, userPosition, userHeading]);
+  }, [routeCoordinates, destination, userPosition, findNextRoutePointAndHeading]);
 
   /**
    * Handle center map on user

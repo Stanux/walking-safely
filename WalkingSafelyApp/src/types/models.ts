@@ -207,9 +207,13 @@ export interface Address {
   id: string;
   formattedAddress: string;
   coordinates: Coordinates;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
   city?: string;
   state?: string;
   country?: string;
+  postalCode?: string;
 }
 
 /**
