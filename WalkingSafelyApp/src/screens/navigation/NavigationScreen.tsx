@@ -510,8 +510,11 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
    * Speak first instruction when navigation starts
    * Requirement 14.1: Narrate navigation instructions
    */
+  const hasSpokenFirstInstruction = useRef(false);
+  
   useEffect(() => {
-    if (voiceInitialized && voiceEnabled && currentInstruction && isMapReady) {
+    if (voiceInitialized && voiceEnabled && currentInstruction && isMapReady && !hasSpokenFirstInstruction.current) {
+      hasSpokenFirstInstruction.current = true;
       // Small delay to ensure everything is ready
       const timer = setTimeout(() => {
         console.log('[NavigationScreen] Speaking first instruction:', currentInstruction.text);
@@ -530,6 +533,10 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
    * Requirement 14.4: Narrate instructions with adequate advance notice
    */
   useEffect(() => {
+    console.log('[NavigationScreen] Narration check - shouldNarrate:', shouldNarrate, 
+      'voiceEnabled:', voiceEnabled, 'voiceInitialized:', voiceInitialized, 
+      'hasInstruction:', !!currentInstruction);
+    
     if (shouldNarrate && voiceEnabled && voiceInitialized && currentInstruction) {
       console.log('[NavigationScreen] Narrating instruction:', currentInstruction.text, 'distance:', currentInstruction.distance);
       speakManeuver(
