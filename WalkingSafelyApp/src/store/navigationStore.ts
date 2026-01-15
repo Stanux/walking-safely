@@ -371,7 +371,8 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
       if (isAdvancingToNewInstruction) {
         // Narrate the NEW instruction we're advancing to
         const newInstruction = route.instructions[newInstructionIndex];
-        if (newInstruction && newInstructionIndex !== lastNarratedIndex) {
+        if (newInstruction) {
+          // Always narrate when advancing to a new instruction
           shouldNarrateNow = true;
           instructionToNarrate = newInstruction;
           // Calculate distance to the new instruction's target
@@ -398,10 +399,8 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
         distance: Math.round(distanceForNarration),
       };
 
-      // Update lastNarratedIndex if we're going to narrate
-      const newLastNarratedIndex = shouldNarrateNow 
-        ? newInstructionIndex  // Mark the instruction we're about to narrate
-        : lastNarratedIndex;
+      // Don't update lastNarratedIndex here - let the UI component do it after actually narrating
+      // This prevents race conditions where the index is marked before narration happens
 
       set({
         currentPosition: position,
@@ -413,7 +412,7 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
           ? updatedInstruction 
           : {...currentInstruction, distance: Math.round(distanceToTarget)},
         shouldNarrate: shouldNarrateNow,
-        lastNarratedIndex: newLastNarratedIndex,
+        // Keep lastNarratedIndex unchanged - UI will update it via markAsNarrated()
       });
     } else {
       // No current instruction, just update position

@@ -537,7 +537,15 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
       'voiceEnabled:', voiceEnabled, 'voiceInitialized:', voiceInitialized, 
       'hasInstruction:', !!currentInstruction);
     
-    if (shouldNarrate && voiceEnabled && voiceInitialized && currentInstruction) {
+    if (shouldNarrate && currentInstruction) {
+      if (!voiceEnabled || !voiceInitialized) {
+        // Debug: show why narration didn't happen
+        console.log('[NavigationScreen] Narration blocked - voiceEnabled:', voiceEnabled, 'voiceInitialized:', voiceInitialized);
+        // Still mark as narrated to avoid repeated attempts
+        markAsNarrated();
+        return;
+      }
+      
       console.log('[NavigationScreen] Narrating instruction:', currentInstruction.text, 'distance:', currentInstruction.distance);
       speakManeuver(
         currentInstruction.maneuver,
