@@ -533,25 +533,17 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
    * Requirement 14.4: Narrate instructions with adequate advance notice
    */
   useEffect(() => {
-    console.log('[NavigationScreen] Narration check - shouldNarrate:', shouldNarrate, 
-      'voiceEnabled:', voiceEnabled, 'voiceInitialized:', voiceInitialized, 
-      'hasInstruction:', !!currentInstruction);
-    
     if (shouldNarrate && currentInstruction) {
       if (!voiceEnabled || !voiceInitialized) {
-        // Debug: show why narration didn't happen
-        console.log('[NavigationScreen] Narration blocked - voiceEnabled:', voiceEnabled, 'voiceInitialized:', voiceInitialized);
-        // Still mark as narrated to avoid repeated attempts
         markAsNarrated();
         return;
       }
       
-      console.log('[NavigationScreen] Narrating instruction:', currentInstruction.text, 'distance:', currentInstruction.distance);
       speakManeuver(
         currentInstruction.maneuver,
         currentInstruction.distance,
         currentInstruction.text,
-        true // forceSpeak - bypass time/distance checks when advancing to new instruction
+        true
       );
       markAsNarrated();
     }

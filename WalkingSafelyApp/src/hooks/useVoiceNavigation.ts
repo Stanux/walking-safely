@@ -244,19 +244,15 @@ export function useVoiceNavigation(
     forceSpeak?: boolean
   ): Promise<void> => {
     if (!isEnabled || !isInitialized) {
-      console.log('[useVoiceNavigation] Cannot speak - enabled:', isEnabled, 'initialized:', isInitialized);
       return;
     }
     
-    // Skip shouldSpeak check if forceSpeak is true (e.g., when advancing to new instruction)
     if (!forceSpeak && !shouldSpeak(distance)) {
-      console.log('[useVoiceNavigation] Skipping speak due to shouldSpeak check');
       return;
     }
     
     try {
       setIsSpeaking(true);
-      console.log('[useVoiceNavigation] Speaking maneuver:', maneuver, 'distance:', distance);
       await ttsService.speakManeuver(maneuver, distance, fullInstruction);
       lastSpokenDistanceRef.current = distance;
       lastSpokenTimeRef.current = Date.now();

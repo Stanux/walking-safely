@@ -360,9 +360,6 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
 
       // Check if we're advancing to a new instruction
       const isAdvancingToNewInstruction = newInstructionIndex !== currentInstructionIndex;
-      
-      console.log('[NavigationStore] updatePosition - currentIdx:', currentInstructionIndex, 
-        'newIdx:', newInstructionIndex, 'isAdvancing:', isAdvancingToNewInstruction);
 
       // Determine if we should narrate:
       // 1. When advancing to a new instruction - always narrate the new instruction
@@ -415,11 +412,7 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
           ? updatedInstruction 
           : {...currentInstruction, distance: Math.round(distanceToTarget)},
         shouldNarrate: shouldNarrateNow,
-        // Keep lastNarratedIndex unchanged - UI will update it via markAsNarrated()
       });
-      
-      console.log('[NavigationStore] State updated - shouldNarrate:', shouldNarrateNow, 
-        'instructionIdx:', newInstructionIndex);
     } else {
       // No current instruction, just update position
       set({
