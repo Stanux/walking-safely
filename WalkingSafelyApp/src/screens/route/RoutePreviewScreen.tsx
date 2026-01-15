@@ -227,6 +227,7 @@ export const RoutePreviewScreen: React.FC<RoutePreviewScreenProps> = ({
         userPosition={origin}
         showUserMarker={true}
         followUser={false}
+        isNavigating={true}
         routeCoordinates={currentRoute?.polyline ? decodePolyline(currentRoute.polyline) : undefined}
         destination={destination}
         occurrences={occurrences.map(occ => ({

@@ -35,7 +35,7 @@ export interface UseVoiceNavigationActions {
   /** Speak a navigation instruction */
   speakInstruction: (instruction: RouteInstruction, distance: number) => Promise<void>;
   /** Speak a maneuver with advance notice */
-  speakManeuver: (maneuver: string, distance: number, fullInstruction?: string) => Promise<void>;
+  speakManeuver: (maneuver: string, distance: number, fullInstruction?: string, forceSpeak?: boolean) => Promise<void>;
   /** Speak a risk alert */
   speakRiskAlert: (crimeType: string, distance: number) => Promise<void>;
   /** Speak arrival notification */
@@ -240,18 +240,23 @@ export function useVoiceNavigation(
   const speakManeuver = useCallback(async (
     maneuver: string,
     distance: number,
-    fullInstruction?: string
+    fullInstruction?: string,
+    forceSpeak?: boolean
   ): Promise<void> => {
     if (!isEnabled || !isInitialized) {
+      console.log('[useVoiceNavigation] Cannot speak - enabled:', isEnabled, 'initialized:', isInitialized);
       return;
     }
     
-    if (!shouldSpeak(distance)) {
+    // Skip shouldSpeak check if forceSpeak is true (e.g., when advancing to new instruction)
+    if (!forceSpeak && !shouldSpeak(distance)) {
+      console.log('[useVoiceNavigation] Skipping speak due to shouldSpeak check');
       return;
     }
     
     try {
       setIsSpeaking(true);
+      console.log('[useVoiceNavigation] Speaking maneuver:', maneuver, 'distance:', distance);
       await ttsService.speakManeuver(maneuver, distance, fullInstruction);
       lastSpokenDistanceRef.current = distance;
       lastSpokenTimeRef.current = Date.now();

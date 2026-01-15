@@ -122,21 +122,55 @@ export function shouldNarrateInstruction(
  * Determine if instruction should advance based on distance
  * Requirement 13.3: Update Maneuver_Indicator to next movement when current is completed
  *
- * @param distanceToInstruction Distance from current position to instruction point (meters)
+ * @param distanceToTarget Distance from current position to target point (meters)
  * @param currentIndex Current instruction index
  * @param totalInstructions Total number of instructions
+ * @param currentManeuver Current instruction maneuver type
+ * @param distanceFromStart Distance from start point (for depart instruction)
  * @returns Whether to advance to next instruction
  */
 export function shouldAdvanceInstruction(
-  distanceToInstruction: number,
+  distanceToTarget: number,
   currentIndex: number,
-  totalInstructions: number
+  totalInstructions: number,
+  currentManeuver?: string,
+  distanceFromStart?: number
 ): boolean {
-  // Advance if within threshold distance (10m - at the point) and not at last instruction
-  return (
-    distanceToInstruction < INSTRUCTION_ADVANCE_THRESHOLD &&
-    currentIndex < totalInstructions - 1
-  );
+  // Don't advance if at last instruction
+  if (currentIndex >= totalInstructions - 1) {
+    return false;
+  }
+
+  // For "depart" instruction (first instruction), advance once user starts moving
+  // away from the start point (moved more than 10m from origin)
+  if (currentManeuver === 'depart' && distanceFromStart !== undefined) {
+    return distanceFromStart > INSTRUCTION_ADVANCE_THRESHOLD;
+  }
+
+  // For other instructions, advance when within threshold distance of target
+  return distanceToTarget < INSTRUCTION_ADVANCE_THRESHOLD;
+}
+
+/**
+ * Get the target coordinates for an instruction
+ * For navigation, we need to calculate distance to where the maneuver happens,
+ * which is the NEXT instruction's coordinates (where we need to turn/act),
+ * not the current instruction's start point.
+ *
+ * @param instructions Array of route instructions
+ * @param currentIndex Current instruction index
+ * @returns Target coordinates for distance calculation
+ */
+export function getInstructionTargetCoordinates(
+  instructions: RouteInstruction[],
+  currentIndex: number
+): Coordinates {
+  // If there's a next instruction, target its coordinates (where the maneuver happens)
+  if (currentIndex + 1 < instructions.length) {
+    return instructions[currentIndex + 1].coordinates;
+  }
+  // For the last instruction, use its own coordinates (destination)
+  return instructions[currentIndex].coordinates;
 }
 
 /**
@@ -158,12 +192,26 @@ export function getNextInstructionIndex(
   }
 
   const currentInstruction = instructions[currentIndex];
-  const distanceToInstruction = calculateDistance(
+  
+  // Calculate distance to the target point (next instruction's coordinates)
+  const targetCoordinates = getInstructionTargetCoordinates(instructions, currentIndex);
+  const distanceToTarget = calculateDistance(
     currentPosition,
-    currentInstruction.coordinates
+    targetCoordinates
   );
 
-  if (shouldAdvanceInstruction(distanceToInstruction, currentIndex, instructions.length)) {
+  // For depart instruction, also calculate distance from start point
+  const distanceFromStart = currentInstruction.maneuver === 'depart'
+    ? calculateDistance(currentPosition, currentInstruction.coordinates)
+    : undefined;
+
+  if (shouldAdvanceInstruction(
+    distanceToTarget,
+    currentIndex,
+    instructions.length,
+    currentInstruction.maneuver,
+    distanceFromStart
+  )) {
     return currentIndex + 1;
   }
 
@@ -302,33 +350,57 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
     const currentInstruction = route.instructions[currentInstructionIndex];
 
     if (currentInstruction) {
-      const distanceToInstruction = calculateDistance(
-        position,
-        currentInstruction.coordinates,
+      // Calculate distance to the target point (where the maneuver happens)
+      // This is the NEXT instruction's coordinates, not the current instruction's start
+      const targetCoordinates = getInstructionTargetCoordinates(
+        route.instructions,
+        currentInstructionIndex
       );
+      const distanceToTarget = calculateDistance(position, targetCoordinates);
 
-      // Check if we should narrate this instruction (at 30m, not yet narrated)
-      // Requirement 14.4: Narrate instructions with adequate advance notice
-      const shouldNarrateNow = shouldNarrateInstruction(distanceToInstruction) && 
-                               currentInstructionIndex !== lastNarratedIndex;
+      // Check if we're advancing to a new instruction
+      const isAdvancingToNewInstruction = newInstructionIndex !== currentInstructionIndex;
 
-      if (newInstructionIndex !== currentInstructionIndex) {
-        console.log('[NavigationStore] Advancing to next instruction:', newInstructionIndex);
+      // Determine if we should narrate:
+      // 1. When advancing to a new instruction - always narrate the new instruction
+      // 2. When approaching current instruction target (at 30m, not yet narrated)
+      let shouldNarrateNow = false;
+      let instructionToNarrate = currentInstruction;
+      let distanceForNarration = distanceToTarget;
+
+      if (isAdvancingToNewInstruction) {
+        // Narrate the NEW instruction we're advancing to
+        const newInstruction = route.instructions[newInstructionIndex];
+        if (newInstruction && newInstructionIndex !== lastNarratedIndex) {
+          shouldNarrateNow = true;
+          instructionToNarrate = newInstruction;
+          // Calculate distance to the new instruction's target
+          const newTargetCoordinates = getInstructionTargetCoordinates(
+            route.instructions,
+            newInstructionIndex
+          );
+          distanceForNarration = calculateDistance(position, newTargetCoordinates);
+          console.log('[NavigationStore] Advancing to next instruction:', newInstructionIndex, '- will narrate');
+        }
+      } else {
+        // Check if we should narrate current instruction (at 30m, not yet narrated)
+        // Requirement 14.4: Narrate instructions with adequate advance notice
+        shouldNarrateNow = shouldNarrateInstruction(distanceToTarget) && 
+                          currentInstructionIndex !== lastNarratedIndex;
+        if (shouldNarrateNow) {
+          console.log('[NavigationStore] Should narrate instruction at distance:', distanceToTarget);
+        }
       }
       
-      if (shouldNarrateNow) {
-        console.log('[NavigationStore] Should narrate instruction at distance:', distanceToInstruction);
-      }
-      
-      // Update distance to current instruction for voice prompts
+      // Update distance to target point for voice prompts
       const updatedInstruction = {
-        ...currentInstruction,
-        distance: Math.round(distanceToInstruction),
+        ...instructionToNarrate,
+        distance: Math.round(distanceForNarration),
       };
 
-      // When advancing to next instruction, reset narration flag for the new instruction
-      const newLastNarratedIndex = newInstructionIndex !== currentInstructionIndex 
-        ? lastNarratedIndex  // Keep the same, new instruction hasn't been narrated yet
+      // Update lastNarratedIndex if we're going to narrate
+      const newLastNarratedIndex = shouldNarrateNow 
+        ? newInstructionIndex  // Mark the instruction we're about to narrate
         : lastNarratedIndex;
 
       set({
@@ -337,9 +409,9 @@ export const useNavigationStore = create<NavigationStore>()((set, get) => ({
         remainingDistance,
         remainingDuration,
         currentInstructionIndex: newInstructionIndex,
-        currentInstruction: newInstructionIndex === currentInstructionIndex 
+        currentInstruction: isAdvancingToNewInstruction 
           ? updatedInstruction 
-          : route.instructions[newInstructionIndex] || null,
+          : {...currentInstruction, distance: Math.round(distanceToTarget)},
         shouldNarrate: shouldNarrateNow,
         lastNarratedIndex: newLastNarratedIndex,
       });

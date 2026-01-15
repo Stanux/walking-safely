@@ -113,27 +113,19 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
       border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
     .user-marker-navigation {
-      width: 0 !important;
-      height: 0 !important;
-      border-left: 18px solid transparent !important;
-      border-right: 18px solid transparent !important;
-      border-bottom: 40px solid #4285F4 !important;
+      width: 48px !important;
+      height: 48px !important;
       background: transparent !important;
+      border: none !important;
       border-radius: 0 !important;
       box-shadow: none !important;
       position: relative !important;
       z-index: 1000 !important;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)) !important;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4)) !important;
     }
-    .user-marker-navigation::after {
-      content: '' !important;
-      position: absolute !important;
-      top: 12px !important;
-      left: -8px !important;
-      width: 16px !important;
-      height: 16px !important;
-      background: white !important;
-      border-radius: 50% !important;
+    .user-marker-navigation svg {
+      width: 100%;
+      height: 100%;
     }
     .destination-marker {
       width: 30px; height: 30px;
@@ -301,14 +293,15 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
           map.setBearing(0);
           lastAppliedHeading = 0;
         }
-        // Update user marker to show navigation marker
+        // Update user marker to show navigation marker (car icon)
         if (userMarker) {
           var pos = userMarker.getLatLng();
+          var carSvg = '<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#e8eef5"/><stop offset="50%" style="stop-color:#fff"/><stop offset="100%" style="stop-color:#e8eef5"/></linearGradient><linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1a365d"/><stop offset="50%" style="stop-color:#2d4a6f"/><stop offset="100%" style="stop-color:#1a365d"/></linearGradient><radialGradient id="shadowGrad" cx="50" cy="110" r="35" gradientUnits="userSpaceOnUse"><stop offset="0.3" style="stop-color:#2563eb;stop-opacity:0.56"/><stop offset="1" style="stop-color:#2563eb;stop-opacity:0"/></radialGradient></defs><ellipse cx="50" cy="108" rx="45" ry="7" fill="rgba(0,0,0,0.15)" style="fill:url(#shadowGrad)"/><path d="m21,51c-3.3,0-5.7,1.7-7,5l1,19c-0.7,3.3,0.3,5.7,3,7v13c0,2,1.3,3,4,3h8c2.7,0,4-1,4-3v-10h32v10c0,2,1.3,3,4,3h8c2.7,0,4-1,4-3v-13c2.7-1.3,3.7-3.7,3-7l-1-19c-1.3-3.3-3.7-5-7-5l-4-16c-2.4-9.7-8.3-15.7-25-17-16.7,1.3-22.6,7.3-25,17z" fill="#d45500" stroke="#1a365d" stroke-width="2"/><rect x="18.8" y="82.3" width="14.3" height="14.7" rx="1.8" fill="#000"/><rect x="66.6" y="82.3" width="14.3" height="14.7" rx="1.8" fill="#000"/><rect x="21.6" y="64.2" width="15.4" height="7.7" rx="3.8" fill="#f00" stroke="#99b8e3" stroke-width="2.9"/><rect x="63.1" y="64.3" width="15.4" height="7.7" rx="3.8" fill="#f00" stroke="#99b8e3" stroke-width="2.9"/><rect x="84" y="51" width="7.7" height="15.4" rx="3.8" fill="#ff7f2a"/><path d="m29.9,37.8q0-7.3,20.1-8.8,20.1,1.5,20.1,8.8v7.3h-40.2z" fill="#0ff" stroke="#1a365d" stroke-width="1.3"/><rect x="32" y="31" width="16" height="4" rx="1.5" fill="#81ffff" transform="rotate(-23)"/><rect x="38" y="36" width="16" height="4" rx="1.5" fill="#81ffff" transform="rotate(-23)"/><rect x="19.5" y="73.7" width="61" height="6" rx="1.8" fill="#520"/></svg>';
           var icon = L.divIcon({ 
             className: '', 
-            html: '<div class="user-marker-navigation"></div>', 
-            iconSize: [40, 40], 
-            iconAnchor: [20, 20] 
+            html: '<div class="user-marker-navigation">' + carSvg + '</div>', 
+            iconSize: [48, 48], 
+            iconAnchor: [24, 24] 
           });
           userMarker.setIcon(icon);
         }
@@ -320,13 +313,14 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
         // Ensure compass mode is also enabled
         isCompassMode = true;
       } else {
-        // Update user marker back to circle
+        // Keep car marker even when not navigating
         if (userMarker) {
+          var carSvgNormal = '<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bodyGrad3" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#e8eef5"/><stop offset="50%" style="stop-color:#fff"/><stop offset="100%" style="stop-color:#e8eef5"/></linearGradient><radialGradient id="shadowGrad3" cx="50" cy="110" r="35" gradientUnits="userSpaceOnUse"><stop offset="0.3" style="stop-color:#2563eb;stop-opacity:0.56"/><stop offset="1" style="stop-color:#2563eb;stop-opacity:0"/></radialGradient></defs><ellipse cx="50" cy="108" rx="45" ry="7" style="fill:url(#shadowGrad3)"/><path d="m21,51c-3.3,0-5.7,1.7-7,5l1,19c-0.7,3.3,0.3,5.7,3,7v13c0,2,1.3,3,4,3h8c2.7,0,4-1,4-3v-10h32v10c0,2,1.3,3,4,3h8c2.7,0,4-1,4-3v-13c2.7-1.3,3.7-3.7,3-7l-1-19c-1.3-3.3-3.7-5-7-5l-4-16c-2.4-9.7-8.3-15.7-25-17-16.7,1.3-22.6,7.3-25,17z" fill="#d45500" stroke="#1a365d" stroke-width="2"/><rect x="18.8" y="82.3" width="14.3" height="14.7" rx="1.8" fill="#000"/><rect x="66.6" y="82.3" width="14.3" height="14.7" rx="1.8" fill="#000"/><rect x="21.6" y="64.2" width="15.4" height="7.7" rx="3.8" fill="#f00" stroke="#99b8e3" stroke-width="2.9"/><rect x="63.1" y="64.3" width="15.4" height="7.7" rx="3.8" fill="#f00" stroke="#99b8e3" stroke-width="2.9"/><rect x="84" y="51" width="7.7" height="15.4" rx="3.8" fill="#ff7f2a"/><path d="m29.9,37.8q0-7.3,20.1-8.8,20.1,1.5,20.1,8.8v7.3h-40.2z" fill="#0ff" stroke="#1a365d" stroke-width="1.3"/><rect x="19.5" y="73.7" width="61" height="6" rx="1.8" fill="#520"/></svg>';
           var icon = L.divIcon({ 
             className: '', 
-            html: '<div class="user-marker"></div>', 
-            iconSize: [20, 20], 
-            iconAnchor: [10, 10] 
+            html: '<div class="user-marker-navigation">' + carSvgNormal + '</div>', 
+            iconSize: [48, 48], 
+            iconAnchor: [24, 24] 
           });
           userMarker.setIcon(icon);
         }
@@ -500,13 +494,15 @@ const generateMapHTML = (initialLat?: number, initialLng?: number) => {
         return;
       }
       
-      // Choose marker style based on navigation mode
-      var markerClass = isNavigationMode ? 'user-marker-navigation' : 'user-marker';
-      var markerSize = isNavigationMode ? [36, 40] : [20, 20];
-      var markerAnchor = isNavigationMode ? [18, 40] : [10, 10];
+      // Car SVG for navigation mode (orange car with cyan windshield)
+      var carSvg = '<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bodyGrad2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#e8eef5"/><stop offset="50%" style="stop-color:#fff"/><stop offset="100%" style="stop-color:#e8eef5"/></linearGradient><linearGradient id="glassGrad2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1a365d"/><stop offset="50%" style="stop-color:#2d4a6f"/><stop offset="100%" style="stop-color:#1a365d"/></linearGradient><radialGradient id="shadowGrad2" cx="50" cy="110" r="35" gradientUnits="userSpaceOnUse"><stop offset="0.3" style="stop-color:#2563eb;stop-opacity:0.56"/><stop offset="1" style="stop-color:#2563eb;stop-opacity:0"/></radialGradient></defs><ellipse cx="50" cy="108" rx="45" ry="7" fill="rgba(0,0,0,0.15)" style="fill:url(#shadowGrad2)"/><path d="m21,51c-3.3,0-5.7,1.7-7,5l1,19c-0.7,3.3,0.3,5.7,3,7v13c0,2,1.3,3,4,3h8c2.7,0,4-1,4-3v-10h32v10c0,2,1.3,3,4,3h8c2.7,0,4-1,4-3v-13c2.7-1.3,3.7-3.7,3-7l-1-19c-1.3-3.3-3.7-5-7-5l-4-16c-2.4-9.7-8.3-15.7-25-17-16.7,1.3-22.6,7.3-25,17z" fill="#d45500" stroke="#1a365d" stroke-width="2"/><rect x="18.8" y="82.3" width="14.3" height="14.7" rx="1.8" fill="#000"/><rect x="66.6" y="82.3" width="14.3" height="14.7" rx="1.8" fill="#000"/><rect x="21.6" y="64.2" width="15.4" height="7.7" rx="3.8" fill="#f00" stroke="#99b8e3" stroke-width="2.9"/><rect x="63.1" y="64.3" width="15.4" height="7.7" rx="3.8" fill="#f00" stroke="#99b8e3" stroke-width="2.9"/><rect x="84" y="51" width="7.7" height="15.4" rx="3.8" fill="#ff7f2a"/><path d="m29.9,37.8q0-7.3,20.1-8.8,20.1,1.5,20.1,8.8v7.3h-40.2z" fill="#0ff" stroke="#1a365d" stroke-width="1.3"/><rect x="32" y="31" width="16" height="4" rx="1.5" fill="#81ffff" transform="rotate(-23)"/><rect x="38" y="36" width="16" height="4" rx="1.5" fill="#81ffff" transform="rotate(-23)"/><rect x="19.5" y="73.7" width="61" height="6" rx="1.8" fill="#520"/></svg>';
       
-      // Create marker HTML - arrow for navigation, circle for normal
-      var markerHtml = '<div class="' + markerClass + '"></div>';
+      // Choose marker style - always use car size
+      var markerSize = [48, 48];
+      var markerAnchor = [24, 24];
+      
+      // Create marker HTML - always use car icon
+      var markerHtml = '<div class="user-marker-navigation">' + carSvg + '</div>';
       
       if (userMarker) { 
         userMarker.setLatLng([lat, lng]);

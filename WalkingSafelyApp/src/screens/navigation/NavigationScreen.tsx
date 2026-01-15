@@ -526,16 +526,17 @@ export const NavigationScreen: React.FC<ActiveNavigationScreenProps> = ({
   }, [voiceInitialized, isMapReady]);
 
   /**
-   * Speak instruction when approaching (30m threshold)
+   * Speak instruction when approaching (30m threshold) or when advancing to new instruction
    * Requirement 14.4: Narrate instructions with adequate advance notice
    */
   useEffect(() => {
     if (shouldNarrate && voiceEnabled && voiceInitialized && currentInstruction) {
-      console.log('[NavigationScreen] Narrating instruction at 30m:', currentInstruction.text);
+      console.log('[NavigationScreen] Narrating instruction:', currentInstruction.text, 'distance:', currentInstruction.distance);
       speakManeuver(
         currentInstruction.maneuver,
         currentInstruction.distance,
-        currentInstruction.text
+        currentInstruction.text,
+        true // forceSpeak - bypass time/distance checks when advancing to new instruction
       );
       markAsNarrated();
     }
